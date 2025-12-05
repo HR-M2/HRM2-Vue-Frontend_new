@@ -98,8 +98,8 @@
 import { ref, onMounted } from 'vue'
 
 // 组件导入
+import { PositionList } from '@/components/common'
 import {
-  PositionList,
   ResumeUpload,
   ProcessingQueue,
   TaskHistory,

@@ -123,6 +123,7 @@ export interface ResumeData {
   report_json_url?: string
   video_analysis_status?: string
   video_analysis_result?: VideoAnalysisResult
+  video_analysis?: VideoAnalysis  // 关联的视频分析对象
   created_at: string
   task_id?: string  // 关联的任务ID
 }

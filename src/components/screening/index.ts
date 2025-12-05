@@ -1,5 +1,4 @@
 // Screening 模块组件统一导出
-export { default as PositionList } from './PositionList.vue'
 export { default as ResumeUpload } from './ResumeUpload.vue'
 export { default as ProcessingQueue } from './ProcessingQueue.vue'
 export { default as TaskHistory } from './TaskHistory.vue'
