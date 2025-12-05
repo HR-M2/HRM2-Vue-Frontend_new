@@ -62,10 +62,10 @@
         </div>
         <div class="history-actions">
           <el-button
-            v-if="task.status === 'completed' && task.reports?.length"
+            v-if="task.status === 'completed' && getDownloadId(task)"
             size="small"
             type="success"
-            @click.stop="$emit('downloadReport', task.reports![0]!.report_id)"
+            @click.stop="$emit('downloadReport', getDownloadId(task)!)"
           >
             下载
           </el-button>
@@ -161,6 +161,20 @@ const statusFilters = [
   { value: 'failed', label: '失败', btnType: 'danger' as const },
   { value: 'pending', label: '队列中', btnType: 'info' as const }
 ]
+
+// 获取下载报告的 ID（优先使用 resume_data 的 id）
+const getDownloadId = (task: ResumeScreeningTask): string | null => {
+  // 优先使用 resume_data 的 id
+  if (task.resume_data && task.resume_data.length > 0) {
+    const rd = task.resume_data[0] as any
+    if (rd?.id) return rd.id
+  }
+  // 备选：使用 reports 的 report_id
+  if (task.reports && task.reports.length > 0) {
+    return task.reports[0]?.report_id || null
+  }
+  return null
+}
 
 // 分页变化
 const handlePageChange = () => {

@@ -99,14 +99,15 @@ export function useResumeDetail() {
   // 下载报告
   const downloadReport = async (reportId: string) => {
     try {
-      const blob = await screeningApi.downloadReport(reportId)
-      const url = URL.createObjectURL(blob)
+      const result = await screeningApi.downloadReportWithFilename(reportId)
+      const url = URL.createObjectURL(result.blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `report_${reportId}.md`
+      a.download = result.filename || `report_${reportId}.md`
       a.click()
       URL.revokeObjectURL(url)
     } catch (err) {
+      console.error('下载报告失败:', err)
       ElMessage.error('下载报告失败')
     }
   }

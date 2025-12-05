@@ -326,13 +326,42 @@ export const screeningApi = {
     }
   },
 
-  // 下载报告
+  // 下载报告（仅返回 Blob）
   downloadReport: async (reportId: string): Promise<Blob> => {
     const response = await fetch(`${API_BASE}/resume-screening/reports/${reportId}/download/`)
     if (!response.ok) {
       throw new Error(`下载报告失败: ${response.status}`)
     }
     return response.blob()
+  },
+
+  // 下载报告（包含文件名）
+  downloadReportWithFilename: async (reportId: string): Promise<{ blob: Blob; filename: string }> => {
+    const response = await fetch(`${API_BASE}/resume-screening/reports/${reportId}/download/`)
+    if (!response.ok) {
+      throw new Error(`下载报告失败: ${response.status}`)
+    }
+    
+    // 从响应头获取文件名
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let filename = `report_${reportId}.md`
+    
+    if (contentDisposition) {
+      // 解析 filename*=UTF-8''xxx 格式
+      const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+      if (utf8Match && utf8Match[1]) {
+        filename = decodeURIComponent(utf8Match[1])
+      } else {
+        // 解析普通 filename="xxx" 格式
+        const normalMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
+        if (normalMatch && normalMatch[1]) {
+          filename = normalMatch[1]
+        }
+      }
+    }
+    
+    const blob = await response.blob()
+    return { blob, filename }
   },
 
   // 获取简历数据

@@ -48,10 +48,10 @@
             <span class="progress-text">{{ item.progress || 0 }}%</span>
           </div>
           <el-button
-            v-if="item.status === 'completed' && item.report_id"
+            v-if="item.status === 'completed' && getDownloadId(item)"
             size="small"
             type="success"
-            @click.stop="$emit('downloadReport', item.report_id!)"
+            @click.stop="$emit('downloadReport', getDownloadId(item)!)"
           >
             下载报告
           </el-button>
@@ -90,6 +90,17 @@ const {
   getSpeakerText, 
   getItemScore 
 } = useScreeningUtils()
+
+// 获取下载报告的 ID（优先使用 resume_data 的 id）
+const getDownloadId = (item: ProcessingTask): string | null => {
+  // 优先使用 resume_data 的 id
+  if (item.resume_data && item.resume_data.length > 0) {
+    const rd = item.resume_data[0] as any
+    if (rd?.id) return rd.id
+  }
+  // 备选：使用 report_id
+  return item.report_id || null
+}
 </script>
 
 <style scoped lang="scss">
