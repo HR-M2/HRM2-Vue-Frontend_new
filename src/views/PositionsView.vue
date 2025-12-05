@@ -38,9 +38,6 @@
             <div class="position-info">
               <div class="position-name">{{ pos.position }}</div>
               <div class="position-meta">
-                <el-tag size="small" :type="getStatusType(pos.status)">
-                  {{ getStatusText(pos.status) }}
-                </el-tag>
                 <span class="resume-count">{{ pos.resume_count || 0 }} 份简历</span>
               </div>
             </div>

@@ -40,9 +40,6 @@
               <div class="group-header">
                 <div class="group-title">
                   <span class="group-name">{{ pos.position }}</span>
-                  <el-tag :type="getPositionStatusType(pos.status)" size="small">
-                    {{ getPositionStatusText(pos.status) }}
-                  </el-tag>
                 </div>
                 <div class="group-meta">{{ pos.resume_count || 0 }} 份简历</div>
               </div>
