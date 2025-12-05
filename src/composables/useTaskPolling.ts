@@ -50,7 +50,15 @@ export function useTaskPolling(onTaskCompleted?: () => void) {
         })
 
         if (status.status === 'completed') {
-          ElMessage.success(`"${task.name}" 初筛完成`)
+          const resumeCount = status.resume_data?.length || 0
+          const totalSteps = status.total_steps || 0
+          const duplicateCount = totalSteps - resumeCount
+          
+          if (duplicateCount > 0) {
+            ElMessage.warning(`"${task.name}" 初筛完成，${duplicateCount} 份简历已存在被跳过`)
+          } else {
+            ElMessage.success(`"${task.name}" 初筛完成`)
+          }
           onTaskCompleted?.()
         }
       } catch (err) {
