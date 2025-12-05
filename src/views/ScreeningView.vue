@@ -41,34 +41,54 @@
                 <div class="group-title">
                   <span class="group-name">{{ pos.position }}</span>
                 </div>
-                <div class="group-meta">{{ pos.resume_count || 0 }} 份简历</div>
+                <div class="group-actions">
+                  <span class="group-meta">{{ pos.resume_count || 0 }} 份</span>
+                  <el-button 
+                    type="primary" 
+                    size="small" 
+                    link 
+                    @click.stop="showAssignDialog(pos)"
+                  >+添加</el-button>
+                </div>
               </div>
               <!-- 岗位中的简历列表 -->
               <div v-if="pos.resumes && pos.resumes.length > 0" class="resumes-preview">
-                <div class="resumes-title">已分配的简历:</div>
                 <div class="resumes-list">
                   <div 
-                    v-for="resume in pos.resumes.slice(0, (pos as any).showAll ? undefined : 3)" 
+                    v-for="resume in getPagedResumes(pos)" 
                     :key="resume.id" 
-                    class="resume-item"
+                    class="resume-item clickable"
+                    @click.stop="showResumeDetail(resume)"
                   >
                     <div class="resume-info">
                       <span class="resume-name">{{ resume.candidate_name || '未知候选人' }}</span>
                     </div>
-                    <div class="resume-score" v-if="resume.screening_score">
-                      <el-tag size="small" type="success">
+                    <div class="resume-actions">
+                      <el-tag v-if="resume.screening_score" size="small" type="success">
                         {{ resume.screening_score.comprehensive_score }}
                       </el-tag>
+                      <el-icon 
+                        class="remove-btn" 
+                        @click.stop="removeResumeFromPosition(pos, resume)"
+                      ><Close /></el-icon>
                     </div>
                   </div>
-                  <div 
-                    v-if="pos.resumes.length > 3" 
-                    class="toggle-resumes"
-                    @click.stop="togglePositionResumes(pos)"
-                  >
-                    <span>{{ (pos as any).showAll ? '收起' : `展开剩余 ${pos.resumes.length - 3} 份` }}</span>
-                    <el-icon><ArrowDown v-if="!(pos as any).showAll" /><ArrowUp v-else /></el-icon>
-                  </div>
+                </div>
+                <!-- 简洁翻页 -->
+                <div v-if="pos.resumes.length > 8" class="resumes-pagination">
+                  <el-button 
+                    size="small" 
+                    link 
+                    :disabled="(pos as any).currentPage <= 1"
+                    @click.stop="prevPage(pos)"
+                  >上一页</el-button>
+                  <span class="page-info">{{ (pos as any).currentPage || 1 }}/{{ Math.ceil(pos.resumes.length / 8) }}</span>
+                  <el-button 
+                    size="small" 
+                    link 
+                    :disabled="((pos as any).currentPage || 1) >= Math.ceil(pos.resumes.length / 8)"
+                    @click.stop="nextPage(pos)"
+                  >下一页</el-button>
                 </div>
               </div>
               <div v-else class="no-resumes">暂无简历</div>
@@ -173,8 +193,9 @@
             <div
               v-for="(item, idx) in processingQueue"
               :key="item.task_id || idx"
-              class="queue-item"
+              class="queue-item clickable"
               :class="`status-${item.status}`"
+              @click="showQueueItemDetail(item)"
             >
               <div class="queue-info">
                 <div class="queue-name">{{ item.name }}</div>
@@ -255,8 +276,9 @@
             <div
               v-for="task in historyTasks"
               :key="task.task_id"
-              class="history-item"
+              class="history-item clickable"
               :class="`status-${task.status}`"
+              @click="showHistoryTaskDetail(task)"
             >
               <div class="history-info">
                 <div class="history-name">
@@ -411,13 +433,77 @@
         <el-button @click="previewDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 简历详情对话框 -->
+    <el-dialog v-model="resumeDetailVisible" title="简历详情" width="70%">
+      <div v-if="selectedResumeDetail" class="resume-detail-dialog">
+        <!-- 基本信息 -->
+        <div class="detail-section">
+          <h4>候选人信息</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="label">姓名:</span>
+              <span class="value">{{ selectedResumeDetail.candidate_name || '未知' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">岗位:</span>
+              <span class="value">{{ selectedResumeDetail.position_title || '-' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 初筛评分 -->
+        <div v-if="selectedResumeDetail.screening_score" class="detail-section">
+          <h4>初筛评分</h4>
+          <div class="scores-grid">
+            <div class="score-item">
+              <span class="score-label">综合评分</span>
+              <span class="score-value primary">{{ selectedResumeDetail.screening_score.comprehensive_score }}</span>
+            </div>
+            <div class="score-item">
+              <span class="score-label">HR评分</span>
+              <span class="score-value">{{ selectedResumeDetail.screening_score.hr_score || '-' }}</span>
+            </div>
+            <div class="score-item">
+              <span class="score-label">技术评分</span>
+              <span class="score-value">{{ selectedResumeDetail.screening_score.technical_score || '-' }}</span>
+            </div>
+            <div class="score-item">
+              <span class="score-label">管理评分</span>
+              <span class="score-value">{{ selectedResumeDetail.screening_score.manager_score || '-' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 初筛评价 -->
+        <div v-if="selectedResumeDetail.screening_summary" class="detail-section">
+          <h4>初筛评价</h4>
+          <div class="markdown-content" v-html="renderMarkdown(selectedResumeDetail.screening_summary)"></div>
+        </div>
+
+        <!-- 简历原文 -->
+        <div class="detail-section">
+          <h4>简历内容</h4>
+          <div 
+            v-if="selectedResumeDetail.resume_content" 
+            class="markdown-content resume-content" 
+            v-html="renderMarkdown(selectedResumeDetail.resume_content, true)"
+          ></div>
+          <div v-else class="no-content">暂无简历内容</div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="resumeDetailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Document, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { Upload, Document, ArrowDown, ArrowUp, Close } from '@element-plus/icons-vue'
+import { marked } from 'marked'
 import { positionApi, screeningApi } from '@/api'
 import type {
   PositionData,
@@ -475,6 +561,11 @@ const selectedGroupId = ref('')
 const previewFileData = ref<ResumeFile | null>(null)
 const currentTaskForGroup = ref<ProcessingTask | null>(null)
 
+// 简历详情对话框
+const resumeDetailVisible = ref(false)
+const selectedResumeDetail = ref<ResumeData | null>(null)
+const currentAssignPosition = ref<PositionData | null>(null)
+
 // 创建简历组相关
 const availableResumes = ref<ResumeData[]>([])
 const selectedResumeIds = ref<string[]>([])
@@ -515,32 +606,135 @@ const selectPosition = (pos: PositionData) => {
   positionData.value = pos
 }
 
-// 岗位状态映射
-const getPositionStatusType = (status?: string) => {
-  const map: Record<string, 'success' | 'warning' | 'info' | 'danger'> = {
-    pending: 'info',
-    interview_analysis: 'warning',
-    interview_analysis_completed: 'warning',
-    comprehensive_screening: 'warning',
-    completed: 'success'
-  }
-  return map[status || 'pending'] || 'info'
-}
-
-const getPositionStatusText = (status?: string) => {
-  const map: Record<string, string> = {
-    pending: '待分析',
-    interview_analysis: '面试分析中',
-    interview_analysis_completed: '面试分析完成',
-    comprehensive_screening: '综合筛选中',
-    completed: '已完成'
-  }
-  return map[status || 'pending'] || '待分析'
-}
-
 // 切换岗位中简历的展开/收起状态
 const togglePositionResumes = (pos: PositionData & { showAll?: boolean }) => {
   (pos as any).showAll = !(pos as any).showAll
+}
+
+// 获取分页后的简历列表（每页最多8个）
+const getPagedResumes = (pos: PositionData) => {
+  if (!pos.resumes) return []
+  const page = (pos as any).currentPage || 1
+  const start = (page - 1) * 8
+  return pos.resumes.slice(start, start + 8)
+}
+
+// 上一页
+const prevPage = (pos: PositionData) => {
+  const current = (pos as any).currentPage || 1
+  if (current > 1) {
+    (pos as any).currentPage = current - 1
+  }
+}
+
+// 下一页
+const nextPage = (pos: PositionData) => {
+  const current = (pos as any).currentPage || 1
+  const total = Math.ceil((pos.resumes?.length || 0) / 8)
+  if (current < total) {
+    (pos as any).currentPage = current + 1
+  }
+}
+
+// 显示分配简历到岗位的弹窗
+const showAssignDialog = (pos: PositionData) => {
+  currentAssignPosition.value = pos
+  selectedPositionId.value = pos.id || null
+  showCreateGroupDialog()
+}
+
+// 显示简历详情
+const showResumeDetail = (resume: ResumeData) => {
+  selectedResumeDetail.value = resume
+  resumeDetailVisible.value = true
+}
+
+// 显示处理队列项详情
+const showQueueItemDetail = async (item: ProcessingTask) => {
+  // 构建 ResumeData 格式，缺失字段会在模板中自动隐藏
+  const resumeData: ResumeData = {
+    id: item.report_id || item.task_id || '',
+    candidate_name: item.name,
+    position_title: item.applied_position || '',
+    screening_score: item.resume_data?.[0]?.scores,
+    resume_content: item.reports?.[0]?.resume_content,
+    created_at: item.created_at
+  }
+  
+  // 如果有 report_id，尝试获取更详细的信息
+  if (item.report_id && item.status === 'completed') {
+    try {
+      const detail = await screeningApi.getResumeDetail(item.report_id)
+      if (detail) {
+        resumeData.resume_content = detail.resume_content || resumeData.resume_content
+        resumeData.screening_summary = detail.screening_summary
+        resumeData.screening_score = detail.screening_score || resumeData.screening_score
+      }
+    } catch (err) {
+      // 获取详情失败，使用已有数据
+      console.warn('获取简历详情失败:', err)
+    }
+  }
+  
+  selectedResumeDetail.value = resumeData
+  resumeDetailVisible.value = true
+}
+
+// 显示历史任务详情
+const showHistoryTaskDetail = async (task: ResumeScreeningTask) => {
+  // 后端 resume_data 已包含完整信息，优先使用
+  const taskResumeData = (task.resume_data as any)?.[0]
+  
+  if (taskResumeData) {
+    // 直接使用后端返回的完整数据
+    const resumeData: ResumeData = {
+      id: taskResumeData.id || task.task_id,
+      candidate_name: taskResumeData.candidate_name || getHistoryTaskName(task),
+      position_title: taskResumeData.position_title || '',
+      screening_score: taskResumeData.scores,
+      screening_summary: taskResumeData.summary,
+      resume_content: taskResumeData.resume_content,
+      created_at: task.created_at
+    }
+    selectedResumeDetail.value = resumeData
+    resumeDetailVisible.value = true
+    return
+  }
+  
+  // 降级：如果没有 resume_data，尝试从 report 获取
+  const report = task.reports?.[0]
+  const resumeData: ResumeData = {
+    id: report?.report_id || task.task_id,
+    candidate_name: getHistoryTaskName(task),
+    position_title: '',
+    resume_content: report?.resume_content,
+    created_at: task.created_at
+  }
+  
+  selectedResumeDetail.value = resumeData
+  resumeDetailVisible.value = true
+}
+
+// 从岗位移除简历
+const removeResumeFromPosition = async (pos: PositionData, resume: ResumeData) => {
+  if (!pos.id || !resume.id) return
+  
+  try {
+    await ElMessageBox.confirm(
+      `确定要将 "${resume.candidate_name || '该简历'}" 从岗位中移除吗？`,
+      '确认移除',
+      { type: 'warning' }
+    )
+    
+    await positionApi.removeResume(pos.id, resume.id)
+    ElMessage.success('移除成功')
+    loadPositionsList()
+  } catch (err) {
+    if (err !== 'cancel') {
+      console.error('移除简历失败:', err)
+      ElMessage.error('移除失败')
+    }
+  }
 }
 
 // 加载岗位数据（向后兼容）
@@ -958,6 +1152,27 @@ const addToGroup = async () => {
 }
 
 // 工具函数
+const renderMarkdown = (content: string, isResume = false): string => {
+  if (!content) return ''
+  
+  if (isResume) {
+    // 简历内容特殊处理：原文没有换行符，使用 \u200b 作为分隔
+    let processed = content
+      // 移除零宽空格，在其前面添加换行（这些通常是段落分隔）
+      .replace(/\u200b([^|\u200b]+)\u200b/g, '\n\n**$1**\n')  // 将 \u200b标题\u200b 转为加粗标题
+      .replace(/\u200b/g, '\n\n')  // 剩余的零宽空格转换行
+      // 在常见分隔符处添加换行
+      .replace(/([。！？])\s*/g, '$1\n')  // 句号后换行
+      .replace(/\s*\|\s*/g, ' | ')  // 规范化竖线分隔符
+      .replace(/(\d{4}-\d{4})\s*(?=[^\d])/g, '$1\n')  // 年份范围后换行
+      .trim()
+    
+    return marked(processed) as string
+  }
+  
+  return marked(content) as string
+}
+
 const formatFileSize = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -1200,9 +1415,15 @@ onUnmounted(() => {
       }
     }
 
-    .group-meta {
-      font-size: 12px;
-      color: #909399;
+    .group-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      .group-meta {
+        font-size: 12px;
+        color: #909399;
+      }
     }
   }
 
@@ -1227,6 +1448,16 @@ onUnmounted(() => {
         border-radius: 4px;
         border: 1px solid #ebeef5;
 
+        &.clickable {
+          cursor: pointer;
+          transition: all 0.2s;
+          
+          &:hover {
+            background: #f5f7fa;
+            border-color: #409eff;
+          }
+        }
+
         .resume-info {
           display: flex;
           flex-direction: column;
@@ -1236,10 +1467,21 @@ onUnmounted(() => {
             font-weight: 500;
             color: #303133;
           }
+        }
 
-          .resume-position {
-            font-size: 11px;
-            color: #909399;
+        .resume-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          
+          .remove-btn {
+            color: #c0c4cc;
+            cursor: pointer;
+            font-size: 14px;
+            
+            &:hover {
+              color: #f56c6c;
+            }
           }
         }
       }
@@ -1262,6 +1504,21 @@ onUnmounted(() => {
         }
       }
     }
+
+    .resumes-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #ebeef5;
+      margin-top: 8px;
+      
+      .page-info {
+        font-size: 12px;
+        color: #909399;
+      }
+    }
   }
 
   .no-resumes {
@@ -1269,6 +1526,162 @@ onUnmounted(() => {
     color: #c0c4cc;
     text-align: center;
     padding: 8px;
+  }
+}
+
+// 简历详情弹窗
+.resume-detail-dialog {
+  .detail-section {
+    margin-bottom: 24px;
+    
+    h4 {
+      margin: 0 0 12px 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #303133;
+      border-left: 3px solid #409eff;
+      padding-left: 10px;
+    }
+  }
+  
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    
+    .info-item {
+      .label {
+        color: #909399;
+        margin-right: 8px;
+      }
+      .value {
+        color: #303133;
+        font-weight: 500;
+      }
+    }
+  }
+  
+  .scores-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    
+    .score-item {
+      text-align: center;
+      padding: 12px;
+      background: #f5f7fa;
+      border-radius: 8px;
+      
+      .score-label {
+        display: block;
+        font-size: 12px;
+        color: #909399;
+        margin-bottom: 6px;
+      }
+      
+      .score-value {
+        display: block;
+        font-size: 20px;
+        font-weight: 600;
+        color: #67c23a;
+        
+        &.primary {
+          font-size: 24px;
+          color: #409eff;
+        }
+      }
+    }
+  }
+  
+  .summary-content {
+    padding: 12px 16px;
+    background: #fafafa;
+    border-radius: 6px;
+    line-height: 1.6;
+    color: #606266;
+  }
+  
+  .markdown-content {
+    padding: 16px;
+    background: #fafafa;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: #303133;
+    
+    :deep(h1), :deep(h2), :deep(h3), :deep(h4) {
+      margin: 12px 0 8px 0;
+      font-weight: 600;
+      color: #303133;
+    }
+    
+    :deep(h1) { font-size: 18px; }
+    :deep(h2) { font-size: 16px; }
+    :deep(h3) { font-size: 15px; }
+    :deep(h4) { font-size: 14px; }
+    
+    :deep(p) {
+      margin: 8px 0;
+    }
+    
+    :deep(ul), :deep(ol) {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+    
+    :deep(li) {
+      margin: 4px 0;
+    }
+    
+    :deep(strong) {
+      font-weight: 600;
+      color: #303133;
+    }
+    
+    :deep(code) {
+      background: #e8e8e8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    
+    :deep(pre) {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    
+    :deep(table) {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      
+      th, td {
+        border: 1px solid #e4e7ed;
+        padding: 8px 12px;
+        text-align: left;
+      }
+      
+      th {
+        background: #f5f7fa;
+        font-weight: 600;
+      }
+    }
+    
+    &.resume-content {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  }
+  
+  .no-content {
+    padding: 20px;
+    text-align: center;
+    color: #909399;
+    background: #fafafa;
+    border-radius: 6px;
   }
 }
 
@@ -1403,6 +1816,16 @@ onUnmounted(() => {
   background: #fafafa;
   border-radius: 6px;
   border-left: 3px solid transparent;
+  transition: all 0.2s;
+
+  &.clickable {
+    cursor: pointer;
+    
+    &:hover {
+      background: #f0f5ff;
+      box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+    }
+  }
 
   &.status-pending { border-left-color: #e6a23c; }
   &.status-running { border-left-color: #409eff; }

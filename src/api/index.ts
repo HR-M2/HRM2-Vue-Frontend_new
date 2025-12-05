@@ -206,6 +206,30 @@ export const screeningApi = {
     return { tasks: result.tasks || [], total: result.total || 0 }
   },
 
+  // 获取简历详情
+  getResumeDetail: async (resumeId: string): Promise<ResumeData | null> => {
+    try {
+      const response = await fetch(`${API_BASE}/resume-screening/reports/${resumeId}/detail/`)
+      if (!response.ok) {
+        return null
+      }
+      const result = await response.json()
+      const report = result.report || result.data || result
+      // 映射字段名称
+      return {
+        id: report.id,
+        candidate_name: report.candidate_name,
+        position_title: report.position_title,
+        resume_content: report.resume_content,
+        screening_score: report.scores,
+        screening_summary: report.summary,
+        created_at: report.created_at
+      }
+    } catch {
+      return null
+    }
+  },
+
   // 获取简历组列表
   getGroups: async (params?: { include_resumes?: boolean }): Promise<ResumeGroup[]> => {
     const searchParams = new URLSearchParams()

@@ -25,13 +25,6 @@ export interface ProjectRequirements {
   team_lead_experience: boolean
 }
 
-export type PositionStatus =
-  | 'pending'
-  | 'interview_analysis'
-  | 'interview_analysis_completed'
-  | 'comprehensive_screening'
-  | 'completed'
-
 export interface PositionData {
   id?: string
   position: string
@@ -45,7 +38,6 @@ export interface PositionData {
   salary_range?: [number, number]
   project_requirements?: ProjectRequirements
   is_active?: boolean
-  status?: PositionStatus
   resume_count?: number
   resumes?: ResumeData[]  // 分配到该岗位的简历
   created_at?: string
@@ -58,9 +50,9 @@ export interface PositionData {
 export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed'
 
 export interface ScreeningScore {
-  hr_score: number
-  technical_score: number
-  manager_score: number
+  hr_score?: number
+  technical_score?: number
+  manager_score?: number
   comprehensive_score: number
 }
 

@@ -251,7 +251,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { positionApi } from '@/api'
-import type { PositionData, PositionStatus } from '@/types'
+import type { PositionData } from '@/types'
 
 // 状态
 const formRef = ref<FormInstance>()
@@ -309,29 +309,6 @@ const hasChanges = computed(() => {
   if (!originalData.value) return false
   return JSON.stringify(formData) !== JSON.stringify(originalData.value)
 })
-
-// 状态映射
-const getStatusType = (status?: PositionStatus) => {
-  const map: Record<string, 'success' | 'warning' | 'info' | 'danger'> = {
-    pending: 'info',
-    interview_analysis: 'warning',
-    interview_analysis_completed: 'warning',
-    comprehensive_screening: 'warning',
-    completed: 'success'
-  }
-  return map[status || 'pending'] || 'info'
-}
-
-const getStatusText = (status?: PositionStatus) => {
-  const map: Record<string, string> = {
-    pending: '待分析',
-    interview_analysis: '面试分析中',
-    interview_analysis_completed: '面试分析完成',
-    comprehensive_screening: '综合筛选中',
-    completed: '已完成'
-  }
-  return map[status || 'pending'] || '待分析'
-}
 
 // 加载岗位列表
 const loadPositions = async () => {
