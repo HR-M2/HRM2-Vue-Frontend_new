@@ -1,11 +1,18 @@
 <template>
-  <el-dialog v-model="visible" title="分配简历到岗位" width="80%" @close="handleClose">
-    <el-alert
-      title="选择已完成初筛的简历，分配到当前选中的岗位"
-      type="info"
-      show-icon
-      style="margin-bottom: 16px;"
-    />
+  <el-dialog v-model="visible" title="添加简历到岗位" width="80%" @close="handleClose">
+    <div class="dialog-header">
+      <el-alert
+        title="选择简历添加到当前岗位，以便后续针对该岗位进行初筛分析"
+        type="info"
+        show-icon
+        :closable="false"
+      />
+      <div class="filter-options">
+        <el-checkbox v-model="hideAssigned">
+          不显示已分配的简历
+        </el-checkbox>
+      </div>
+    </div>
     
     <div v-if="selectedPositionId" class="selected-position-info">
       <span>目标岗位: </span>
@@ -17,7 +24,7 @@
     
     <div class="resumes-selection">
       <el-table
-        :data="availableResumes"
+        :data="filteredResumes"
         row-key="id"
         style="width: 100%"
         v-loading="loading"
@@ -47,6 +54,11 @@
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
+        <el-table-column label="标识" width="100" align="center">
+          <template #default="{ row }">
+            <span class="hash-value">{{ getShortId(row.id) }}</span>
+          </template>
+        </el-table-column>
       </el-table>
     </div>
     
@@ -58,14 +70,14 @@
         :disabled="selectedResumeIds.length === 0 || !selectedPositionId"
         :loading="submitting"
       >
-        分配到岗位 ({{ selectedResumeIds.length }})
+        添加到岗位 ({{ selectedResumeIds.length }})
       </el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useScreeningUtils } from '@/composables/useScreeningUtils'
 import type { ResumeData } from '@/types'
 
@@ -74,6 +86,7 @@ const props = defineProps<{
   selectedPositionId: string | null
   positionName: string
   availableResumes: ResumeData[]
+  assignedResumeIds: string[]  // 已分配到任何岗位的简历ID列表
   loading: boolean
   submitting: boolean
 }>()
@@ -88,6 +101,21 @@ const { formatDate } = useScreeningUtils()
 
 const visible = ref(props.modelValue)
 const selectedResumeIds = ref<string[]>([])
+const hideAssigned = ref(true)  // 默认勾选，不显示已分配的简历
+
+// 过滤后的简历列表
+const filteredResumes = computed(() => {
+  if (!hideAssigned.value) {
+    return props.availableResumes
+  }
+  return props.availableResumes.filter(r => !props.assignedResumeIds.includes(r.id))
+})
+
+// 获取简历ID的短标识（前8位）
+const getShortId = (id: string) => {
+  if (!id) return 'N/A'
+  return id.substring(0, 8)
+}
 
 // 同步 visible
 watch(() => props.modelValue, (val) => {
@@ -104,7 +132,7 @@ const handleClose = () => {
   emit('close')
 }
 
-// 分配
+// 添加到岗位
 const handleAssign = () => {
   emit('assign', selectedResumeIds.value)
 }
@@ -116,6 +144,23 @@ defineExpose({
 </script>
 
 <style scoped lang="scss">
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  .el-alert {
+    flex: 1;
+  }
+
+  .filter-options {
+    flex-shrink: 0;
+    padding-top: 8px;
+  }
+}
+
 .selected-position-info {
   margin-bottom: 16px;
   padding: 12px;
@@ -134,5 +179,14 @@ defineExpose({
 .resumes-selection {
   max-height: 50vh;
   overflow-y: auto;
+}
+
+.hash-value {
+  font-family: monospace;
+  font-size: 12px;
+  color: #909399;
+  background: #f5f7fa;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 </style>

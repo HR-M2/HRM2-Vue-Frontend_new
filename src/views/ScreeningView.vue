@@ -61,12 +61,13 @@
       </div>
     </div>
 
-    <!-- 分配简历到岗位对话框 -->
+    <!-- 添加简历到岗位对话框 -->
     <AssignResumeDialog
       v-model="createGroupDialogVisible"
       :selected-position-id="selectedPositionId"
       :position-name="positionData.position"
       :available-resumes="availableResumes"
+      :assigned-resume-ids="assignedResumeIds"
       :loading="resumesLoading"
       :submitting="creatingGroup"
       @assign="assignResumesToPosition"
@@ -175,11 +176,12 @@ const {
   downloadReport
 } = useResumeDetail()
 
-// 简历分配（分配成功时刷新岗位列表）
+// 简历添加（添加成功时刷新岗位列表）
 const {
   createGroupDialogVisible,
   addToGroupDialogVisible,
   availableResumes,
+  assignedResumeIds,
   resumesLoading,
   creatingGroup,
   showCreateGroupDialog,
@@ -188,13 +190,13 @@ const {
   showAddToGroupDialog,
   showAddToGroupDialogFromHistory,
   addToGroup
-} = useResumeAssignment(selectedPositionId, loadPositionsList)
+} = useResumeAssignment(selectedPositionId, positionsList, loadPositionsList)
 
 // ==================== 事件处理 ====================
 
-// 显示分配对话框（从岗位列表触发）
+// 显示添加对话框（从岗位列表触发）
 const showAssignDialog = (pos: PositionData) => {
-  selectedPositionId.value = pos.id || null
+  selectPosition(pos)  // 同时更新 selectedPositionId 和 positionData
   showCreateGroupDialog()
 }
 

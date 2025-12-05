@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" title="分配到岗位" width="500px">
+  <el-dialog v-model="visible" title="添加到岗位" width="500px">
     <el-select v-model="selectedGroupId" placeholder="请选择目标岗位" style="width: 100%">
       <el-option
         v-for="pos in positions"
@@ -10,7 +10,7 @@
     </el-select>
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :disabled="!selectedGroupId" @click="handleConfirm">确认分配</el-button>
+      <el-button type="primary" :disabled="!selectedGroupId" @click="handleConfirm">确认添加</el-button>
     </template>
   </el-dialog>
 </template>

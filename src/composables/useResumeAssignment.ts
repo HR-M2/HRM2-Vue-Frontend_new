@@ -1,15 +1,16 @@
 /**
  * 简历分配 composable
- * 处理简历分配到岗位的相关操作
+ * 处理简历添加到岗位的相关操作
  */
-import { ref } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { positionApi, screeningApi } from '@/api'
-import type { ResumeData, ProcessingTask, ResumeScreeningTask } from '@/types'
+import type { ResumeData, ProcessingTask, ResumeScreeningTask, PositionData } from '@/types'
 import { useScreeningUtils } from './useScreeningUtils'
 
 export function useResumeAssignment(
-  selectedPositionId: ReturnType<typeof ref<string | null>>,
+  selectedPositionId: Ref<string | null>,
+  positionsList: Ref<PositionData[]>,
   onAssignSuccess?: () => void
 ) {
   const { getHistoryTaskName } = useScreeningUtils()
@@ -24,6 +25,21 @@ export function useResumeAssignment(
   const creatingGroup = ref(false)
   const currentTaskForGroup = ref<ProcessingTask | null>(null)
 
+  // 计算所有已分配到任何岗位的简历ID
+  const assignedResumeIds = computed(() => {
+    const ids: string[] = []
+    for (const pos of positionsList.value) {
+      if (pos.resumes) {
+        for (const resume of pos.resumes) {
+          if (resume.id && !ids.includes(resume.id)) {
+            ids.push(resume.id)
+          }
+        }
+      }
+    }
+    return ids
+  })
+
   // 加载可用简历
   const loadAvailableResumes = async () => {
     resumesLoading.value = true
@@ -37,7 +53,7 @@ export function useResumeAssignment(
     }
   }
 
-  // 显示分配对话框
+  // 显示添加对话框
   const showCreateGroupDialog = async () => {
     createGroupDialogVisible.value = true
     await loadAvailableResumes()
@@ -48,19 +64,19 @@ export function useResumeAssignment(
     availableResumes.value = []
   }
 
-  // 分配简历到岗位
+  // 添加简历到岗位
   const assignResumesToPosition = async (resumeIds: string[]) => {
     if (resumeIds.length === 0 || !selectedPositionId.value) return
     
     creatingGroup.value = true
     try {
       const result = await positionApi.assignResumes(selectedPositionId.value, resumeIds)
-      ElMessage.success(`成功分配 ${result.assigned_count} 份简历到岗位`)
+      ElMessage.success(`成功添加 ${result.assigned_count} 份简历到岗位`)
       createGroupDialogVisible.value = false
       onAssignSuccess?.()
     } catch (err) {
-      console.error('分配简历失败:', err)
-      ElMessage.error('分配简历失败')
+      console.error('添加简历失败:', err)
+      ElMessage.error('添加简历失败')
     } finally {
       creatingGroup.value = false
     }
@@ -97,11 +113,11 @@ export function useResumeAssignment(
     if (!currentTaskForGroup.value?.report_id) return
     try {
       await positionApi.assignResumes(groupId, [currentTaskForGroup.value.report_id])
-      ElMessage.success('分配成功')
+      ElMessage.success('添加成功')
       addToGroupDialogVisible.value = false
       onAssignSuccess?.()
     } catch (err) {
-      ElMessage.error('分配失败')
+      ElMessage.error('添加失败')
     }
   }
 
@@ -109,6 +125,7 @@ export function useResumeAssignment(
     createGroupDialogVisible,
     addToGroupDialogVisible,
     availableResumes,
+    assignedResumeIds,
     resumesLoading,
     creatingGroup,
     currentTaskForGroup,
