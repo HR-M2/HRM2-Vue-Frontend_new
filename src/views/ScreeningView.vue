@@ -95,8 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, onMounted } from 'vue'
 
 // 组件导入
 import {
@@ -110,444 +109,93 @@ import {
   ResumeDetailDialog
 } from '@/components/screening'
 
-// API 导入
-import { positionApi, screeningApi } from '@/api'
+// Composables 导入
+import { usePositionManagement } from '@/composables/usePositionManagement'
+import { useTaskPolling } from '@/composables/useTaskPolling'
+import { useHistoryTasks } from '@/composables/useHistoryTasks'
+import { useResumeUpload } from '@/composables/useResumeUpload'
+import { useResumeAssignment } from '@/composables/useResumeAssignment'
+import { useResumeDetail } from '@/composables/useResumeDetail'
 
 // 类型导入
-import type {
-  PositionData,
-  ResumeScreeningTask,
-  ResumeFile,
-  ProcessingTask,
-  ResumeData
-} from '@/types'
+import type { PositionData } from '@/types'
 
-// ==================== 状态定义 ====================
+// ==================== Composables 初始化 ====================
 
-// 岗位相关
-const positionData = ref<PositionData>({
-  position: '前端开发工程师',
-  required_skills: ['HTML', 'JavaScript', 'CSS'],
-  optional_skills: [],
-  min_experience: 2,
-  education: ['本科', '硕士'],
-  certifications: [],
-  salary_range: [8000, 20000],
-  project_requirements: { min_projects: 2, team_lead_experience: false }
-})
-const positionsList = ref<PositionData[]>([])
-const selectedPositionId = ref<string | null>(null)
+// 岗位管理
+const {
+  positionData,
+  positionsList,
+  selectedPositionId,
+  loadPositionsList,
+  selectPosition,
+  removeResumeFromPosition
+} = usePositionManagement()
 
-// 上传相关
+// 历史任务（需要先初始化，供其他 composable 引用）
+const {
+  historyTasks,
+  historyParams,
+  historyTotal,
+  historyLoading,
+  loadHistoryTasks,
+  filterByStatus,
+  deleteHistoryTask
+} = useHistoryTasks()
+
+// 任务轮询（完成时刷新历史任务）
+const {
+  processingQueue,
+  addToQueue
+} = useTaskPolling(loadHistoryTasks)
+
+// 简历上传组件引用
 const resumeUploadRef = ref<InstanceType<typeof ResumeUpload>>()
-const isSubmitting = ref(false)
-const currentFiles = ref<ResumeFile[]>([])
 
-// 处理队列
-const processingQueue = ref<ProcessingTask[]>([])
-const taskPollingTimer = ref<number | null>(null)
+// 简历上传（提交成功时添加到队列）
+const {
+  isSubmitting,
+  handleFilesChanged,
+  submitFiles: doSubmitFiles
+} = useResumeUpload(positionData, addToQueue)
 
-// 历史任务
-const historyTasks = ref<ResumeScreeningTask[]>([])
-const historyParams = reactive({ status: 'completed', page: 1, page_size: 10 })
-const historyTotal = ref(0)
-const historyLoading = ref(false)
+// 包装 submitFiles 以便传入清除回调
+const submitFiles = () => doSubmitFiles(() => resumeUploadRef.value?.clearAll())
 
-// 对话框状态
-const createGroupDialogVisible = ref(false)
-const addToGroupDialogVisible = ref(false)
-const previewDialogVisible = ref(false)
-const resumeDetailVisible = ref(false)
+// 简历详情和预览
+const {
+  previewDialogVisible,
+  resumeDetailVisible,
+  previewFileData,
+  selectedResumeDetail,
+  previewFile,
+  showResumeDetail,
+  showQueueItemDetail,
+  showHistoryTaskDetail,
+  downloadReport
+} = useResumeDetail()
 
-// 对话框数据
-const previewFileData = ref<ResumeFile | null>(null)
-const selectedResumeDetail = ref<ResumeData | null>(null)
-const currentTaskForGroup = ref<ProcessingTask | null>(null)
+// 简历分配（分配成功时刷新岗位列表）
+const {
+  createGroupDialogVisible,
+  addToGroupDialogVisible,
+  availableResumes,
+  resumesLoading,
+  creatingGroup,
+  showCreateGroupDialog,
+  handleCreateDialogClose,
+  assignResumesToPosition,
+  showAddToGroupDialog,
+  showAddToGroupDialogFromHistory,
+  addToGroup
+} = useResumeAssignment(selectedPositionId, loadPositionsList)
 
-// 简历分配相关
-const availableResumes = ref<ResumeData[]>([])
-const resumesLoading = ref(false)
-const creatingGroup = ref(false)
+// ==================== 事件处理 ====================
 
-// ==================== 岗位管理 ====================
-
-const loadPositionsList = async () => {
-  try {
-    const result = await positionApi.getPositions({ include_resumes: true })
-    positionsList.value = (result.positions || []).map(p => ({ ...p, showAll: false }))
-    
-    const firstPosition = positionsList.value[0]
-    if (firstPosition && !selectedPositionId.value) {
-      selectedPositionId.value = firstPosition.id ?? null
-      positionData.value = firstPosition
-    }
-  } catch (err) {
-    console.error('加载岗位列表失败:', err)
-  }
-}
-
-const selectPosition = (pos: PositionData) => {
-  selectedPositionId.value = pos.id || null
-  positionData.value = pos
-}
-
-const removeResumeFromPosition = async (pos: PositionData, resume: ResumeData) => {
-  if (!pos.id || !resume.id) return
-  
-  try {
-    await ElMessageBox.confirm(
-      `确定要将 "${resume.candidate_name || '该简历'}" 从岗位中移除吗？`,
-      '确认移除',
-      { type: 'warning' }
-    )
-    
-    await positionApi.removeResume(pos.id, resume.id)
-    ElMessage.success('移除成功')
-    loadPositionsList()
-  } catch (err) {
-    if (err !== 'cancel') {
-      console.error('移除简历失败:', err)
-      ElMessage.error('移除失败')
-    }
-  }
-}
-
-// ==================== 文件上传 ====================
-
-const handleFilesChanged = (files: ResumeFile[]) => {
-  currentFiles.value = files
-}
-
-const submitFiles = async () => {
-  const parsedFiles = currentFiles.value.filter(f => f.status === 'parsed')
-  if (parsedFiles.length === 0) {
-    ElMessage.warning('没有已解析的文件可提交')
-    return
-  }
-
-  isSubmitting.value = true
-  let successCount = 0
-  
-  try {
-    // 为每份简历单独发送请求，获取独立的task_id
-    for (const file of parsedFiles) {
-      try {
-        const uploadData = {
-          position: positionData.value,
-          resumes: [{
-            name: file.name,
-            content: file.content || '',
-            metadata: {
-              size: file.file.size,
-              type: file.file.type || 'text/plain'
-            }
-          }]
-        }
-
-        const result = await screeningApi.submitScreening(uploadData)
-        
-        // 每份简历有独立的task_id
-        processingQueue.value.unshift({
-          name: file.name,
-          task_id: result.task_id,
-          status: 'pending',
-          progress: 0,
-          created_at: new Date().toISOString(),
-          applied_position: positionData.value.position
-        })
-        
-        successCount++
-      } catch (err) {
-        console.error(`提交 ${file.name} 失败:`, err)
-        ElMessage.error(`${file.name} 提交失败`)
-      }
-    }
-
-    if (successCount > 0) {
-      resumeUploadRef.value?.clearAll()
-      ElMessage.success(`成功提交 ${successCount} 份简历进行初筛`)
-      startTaskPolling()
-    }
-  } catch (err) {
-    console.error('提交失败:', err)
-    ElMessage.error('提交失败')
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-const previewFile = (file: ResumeFile) => {
-  previewFileData.value = file
-  previewDialogVisible.value = true
-}
-
-// ==================== 任务轮询 ====================
-
-const startTaskPolling = () => {
-  if (taskPollingTimer.value) return
-  taskPollingTimer.value = window.setInterval(pollTaskStatus, 3000)
-}
-
-const stopTaskPolling = () => {
-  if (taskPollingTimer.value) {
-    clearInterval(taskPollingTimer.value)
-    taskPollingTimer.value = null
-  }
-}
-
-const pollTaskStatus = async () => {
-  const pendingTasks = processingQueue.value.filter(
-    t => t.status === 'pending' || t.status === 'running'
-  )
-
-  if (pendingTasks.length === 0) {
-    stopTaskPolling()
-    return
-  }
-
-  for (const task of pendingTasks) {
-    if (!task.task_id) continue
-    try {
-      const status = await screeningApi.getTaskStatus(task.task_id)
-      Object.assign(task, {
-        status: status.status,
-        progress: status.progress,
-        current_speaker: status.current_speaker,
-        report_id: status.reports?.[0]?.report_id,
-        reports: status.reports,
-        resume_data: status.resume_data
-      })
-
-      if (status.status === 'completed') {
-        ElMessage.success(`"${task.name}" 初筛完成`)
-        loadHistoryTasks()
-      }
-    } catch (err) {
-      console.error('获取任务状态失败:', err)
-    }
-  }
-}
-
-// ==================== 历史任务 ====================
-
-const loadHistoryTasks = async () => {
-  historyLoading.value = true
-  try {
-    const result = await screeningApi.getTaskHistory(historyParams)
-    historyTasks.value = result.tasks || []
-    historyTotal.value = result.total || 0
-  } catch (err) {
-    console.error('加载历史任务失败:', err)
-  } finally {
-    historyLoading.value = false
-  }
-}
-
-const filterByStatus = (status: string) => {
-  historyParams.status = status
-  historyParams.page = 1
-  loadHistoryTasks()
-}
-
-const deleteHistoryTask = async (taskId: string) => {
-  try {
-    await ElMessageBox.confirm('确定要删除这条初筛记录吗？删除后无法恢复。', '确认删除', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    
-    await screeningApi.deleteTask(taskId)
-    ElMessage.success('删除成功')
-    loadHistoryTasks()
-  } catch (err: any) {
-    if (err !== 'cancel') {
-      console.error('删除失败:', err)
-      ElMessage.error('删除失败')
-    }
-  }
-}
-
-// ==================== 下载报告 ====================
-
-const downloadReport = async (reportId: string) => {
-  try {
-    const blob = await screeningApi.downloadReport(reportId)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `report_${reportId}.md`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch (err) {
-    ElMessage.error('下载报告失败')
-  }
-}
-
-// ==================== 简历详情 ====================
-
-const showResumeDetail = (resume: ResumeData) => {
-  selectedResumeDetail.value = resume
-  resumeDetailVisible.value = true
-}
-
-const showQueueItemDetail = async (item: ProcessingTask) => {
-  // 优先从 resume_data 获取数据（包含完整的筛选结果）
-  const resumeDataItem = item.resume_data?.[0]
-  
-  const resumeData: ResumeData = {
-    id: resumeDataItem?.id || item.report_id || item.task_id || '',
-    candidate_name: resumeDataItem?.candidate_name || item.name,
-    position_title: resumeDataItem?.position_title || item.applied_position || '',
-    screening_score: resumeDataItem?.scores,
-    screening_summary: resumeDataItem?.summary,
-    resume_content: resumeDataItem?.resume_content || item.reports?.[0]?.resume_content,
-    created_at: item.created_at
-  }
-  
-  // 如果本地数据不完整，尝试从API获取详情
-  // 使用 resume_data 的 id（而不是 report_id）
-  const detailId = resumeDataItem?.id || item.report_id
-  if (detailId && item.status === 'completed' && !resumeData.screening_summary) {
-    try {
-      const detail = await screeningApi.getResumeDetail(detailId)
-      if (detail) {
-        resumeData.resume_content = detail.resume_content || resumeData.resume_content
-        resumeData.screening_summary = detail.screening_summary || resumeData.screening_summary
-        resumeData.screening_score = detail.screening_score || resumeData.screening_score
-        resumeData.candidate_name = detail.candidate_name || resumeData.candidate_name
-      }
-    } catch (err) {
-      console.warn('获取简历详情失败:', err)
-    }
-  }
-  
-  selectedResumeDetail.value = resumeData
-  resumeDetailVisible.value = true
-}
-
-const showHistoryTaskDetail = async (task: ResumeScreeningTask) => {
-  const taskResumeData = (task.resume_data as any)?.[0]
-  
-  if (taskResumeData) {
-    const resumeData: ResumeData = {
-      id: taskResumeData.id || task.task_id,
-      candidate_name: taskResumeData.candidate_name || getHistoryTaskName(task),
-      position_title: taskResumeData.position_title || '',
-      screening_score: taskResumeData.scores,
-      screening_summary: taskResumeData.summary,
-      resume_content: taskResumeData.resume_content,
-      created_at: task.created_at
-    }
-    selectedResumeDetail.value = resumeData
-    resumeDetailVisible.value = true
-    return
-  }
-  
-  const report = task.reports?.[0]
-  const resumeData: ResumeData = {
-    id: report?.report_id || task.task_id,
-    candidate_name: getHistoryTaskName(task),
-    position_title: '',
-    resume_content: report?.resume_content,
-    created_at: task.created_at
-  }
-  
-  selectedResumeDetail.value = resumeData
-  resumeDetailVisible.value = true
-}
-
-const getHistoryTaskName = (task: ResumeScreeningTask): string => {
-  if (task.resume_data && task.resume_data.length > 0) {
-    const rd = task.resume_data[0] as any
-    if (rd?.candidate_name) return rd.candidate_name
-  }
-  if (task.reports && task.reports.length > 0) {
-    const filename = task.reports[0]?.report_filename
-    return filename?.replace(/\.[^/.]+$/, '') || '未知文件'
-  }
-  return '未知文件'
-}
-
-// ==================== 简历分配 ====================
-
+// 显示分配对话框（从岗位列表触发）
 const showAssignDialog = (pos: PositionData) => {
   selectedPositionId.value = pos.id || null
   showCreateGroupDialog()
-}
-
-const showCreateGroupDialog = async () => {
-  createGroupDialogVisible.value = true
-  await loadAvailableResumes()
-}
-
-const loadAvailableResumes = async () => {
-  resumesLoading.value = true
-  try {
-    availableResumes.value = await screeningApi.getAvailableResumes()
-  } catch (err) {
-    console.error('加载可用简历失败:', err)
-    ElMessage.error('加载简历列表失败')
-  } finally {
-    resumesLoading.value = false
-  }
-}
-
-const handleCreateDialogClose = () => {
-  availableResumes.value = []
-}
-
-const assignResumesToPosition = async (resumeIds: string[]) => {
-  if (resumeIds.length === 0 || !selectedPositionId.value) return
-  
-  creatingGroup.value = true
-  try {
-    const result = await positionApi.assignResumes(selectedPositionId.value, resumeIds)
-    ElMessage.success(`成功分配 ${result.assigned_count} 份简历到岗位`)
-    createGroupDialogVisible.value = false
-    loadPositionsList()
-  } catch (err) {
-    console.error('分配简历失败:', err)
-    ElMessage.error('分配简历失败')
-  } finally {
-    creatingGroup.value = false
-  }
-}
-
-const showAddToGroupDialog = (task: ProcessingTask) => {
-  currentTaskForGroup.value = task
-  addToGroupDialogVisible.value = true
-}
-
-const showAddToGroupDialogFromHistory = (task: ResumeScreeningTask) => {
-  const resumeDataId = (task.resume_data?.[0] as any)?.id || task.reports?.[0]?.report_id
-  if (resumeDataId) {
-    currentTaskForGroup.value = {
-      name: getHistoryTaskName(task),
-      task_id: task.task_id,
-      status: task.status,
-      progress: task.progress,
-      created_at: task.created_at,
-      report_id: resumeDataId,
-      reports: task.reports,
-      resume_data: task.resume_data
-    }
-    addToGroupDialogVisible.value = true
-  } else {
-    ElMessage.warning('无法获取简历数据ID')
-  }
-}
-
-const addToGroup = async (groupId: string) => {
-  if (!currentTaskForGroup.value?.report_id) return
-  try {
-    await positionApi.assignResumes(groupId, [currentTaskForGroup.value.report_id])
-    ElMessage.success('分配成功')
-    addToGroupDialogVisible.value = false
-    loadPositionsList()
-  } catch (err) {
-    ElMessage.error('分配失败')
-  }
 }
 
 // ==================== 生命周期 ====================
@@ -555,10 +203,6 @@ const addToGroup = async (groupId: string) => {
 onMounted(() => {
   loadPositionsList()
   loadHistoryTasks()
-})
-
-onUnmounted(() => {
-  stopTaskPolling()
 })
 </script>
 
