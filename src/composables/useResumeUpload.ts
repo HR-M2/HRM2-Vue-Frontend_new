@@ -1,10 +1,10 @@
 /**
  * 简历上传 composable
- * 处理简历文件上传和提交
+ * 处理简历文件上传和提交（支持上传文件和简历库选择两种模式）
  */
 import { ref, type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { screeningApi } from '@/api'
+import { screeningApi, libraryApi, type LibraryResume } from '@/api'
 import type { PositionData, ResumeFile, ProcessingTask } from '@/types'
 
 export function useResumeUpload(
@@ -13,16 +13,25 @@ export function useResumeUpload(
 ) {
   const isSubmitting = ref(false)
   const currentFiles = ref<ResumeFile[]>([])
+  const libraryFiles = ref<LibraryResume[]>([])
 
-  // 文件变化处理
+  // 上传文件变化处理
   const handleFilesChanged = (files: ResumeFile[]) => {
     currentFiles.value = files
   }
 
-  // 提交文件
+  // 简历库文件变化处理
+  const handleLibraryFilesChanged = (files: LibraryResume[]) => {
+    libraryFiles.value = files
+  }
+
+  // 提交文件（同时处理上传文件和简历库文件）
   const submitFiles = async (clearCallback?: () => void) => {
     const parsedFiles = currentFiles.value.filter(f => f.status === 'parsed')
-    if (parsedFiles.length === 0) {
+    const selectedLibraryFiles = libraryFiles.value
+    
+    // 检查是否有可提交的文件
+    if (parsedFiles.length === 0 && selectedLibraryFiles.length === 0) {
       ElMessage.warning('没有已解析的文件可提交')
       return
     }
@@ -31,6 +40,7 @@ export function useResumeUpload(
     let successCount = 0
     
     try {
+      // 1. 提交上传的文件
       for (const file of parsedFiles) {
         try {
           const uploadData = {
@@ -64,6 +74,43 @@ export function useResumeUpload(
         }
       }
 
+      // 2. 提交从简历库选择的文件
+      for (const libFile of selectedLibraryFiles) {
+        try {
+          // 获取简历库文件的详细内容
+          const detail = await libraryApi.getDetail(libFile.id)
+          
+          const uploadData = {
+            position: positionData.value,
+            resumes: [{
+              name: libFile.filename,
+              content: detail.content || '',
+              metadata: {
+                size: libFile.file_size,
+                type: libFile.file_type || 'text/plain'
+              }
+            }]
+          }
+
+          const result = await screeningApi.submitScreening(uploadData as any)
+          
+          const task: ProcessingTask = {
+            name: libFile.filename,
+            task_id: result.task_id,
+            status: 'pending',
+            progress: 0,
+            created_at: new Date().toISOString(),
+            applied_position: positionData.value.position
+          }
+          
+          onSubmitSuccess?.(task)
+          successCount++
+        } catch (err) {
+          console.error(`提交 ${libFile.filename} 失败:`, err)
+          ElMessage.error(`${libFile.filename} 提交失败`)
+        }
+      }
+
       if (successCount > 0) {
         clearCallback?.()
         ElMessage.success(`成功提交 ${successCount} 份简历进行初筛`)
@@ -79,7 +126,9 @@ export function useResumeUpload(
   return {
     isSubmitting,
     currentFiles,
+    libraryFiles,
     handleFilesChanged,
+    handleLibraryFilesChanged,
     submitFiles
   }
 }

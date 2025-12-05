@@ -32,6 +32,7 @@
           @submit="submitFiles"
           @preview="previewFile"
           @files-changed="handleFilesChanged"
+          @library-files-changed="handleLibraryFilesChanged"
         />
 
         <!-- 处理队列 -->
@@ -157,11 +158,15 @@ const resumeUploadRef = ref<InstanceType<typeof ResumeUpload>>()
 const {
   isSubmitting,
   handleFilesChanged,
+  handleLibraryFilesChanged,
   submitFiles: doSubmitFiles
 } = useResumeUpload(positionData, addToQueue)
 
 // 包装 submitFiles 以便传入清除回调
-const submitFiles = () => doSubmitFiles(() => resumeUploadRef.value?.clearAll())
+const submitFiles = () => doSubmitFiles(() => {
+  resumeUploadRef.value?.clearAll()
+  resumeUploadRef.value?.clearLibrarySelection()
+})
 
 // 简历详情和预览
 const {
