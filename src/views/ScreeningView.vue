@@ -12,510 +12,117 @@
     <div class="content-grid">
       <!-- 左侧面板 -->
       <div class="left-panel">
-        <!-- 岗位列表（即简历组） -->
-        <el-card class="groups-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title">招聘岗位</span>
-              <router-link to="/positions">
-                <el-button type="primary" size="small">管理岗位</el-button>
-              </router-link>
-            </div>
-          </template>
-          <div v-if="positionsList.length === 0" class="empty-groups">
-            <el-empty description="暂无岗位，请先创建岗位" :image-size="60">
-              <router-link to="/positions">
-                <el-button type="primary" size="small">创建岗位</el-button>
-              </router-link>
-            </el-empty>
-          </div>
-          <div v-else class="groups-list">
-            <div 
-              v-for="pos in positionsList" 
-              :key="pos.id" 
-              class="group-item-card"
-              :class="{ active: selectedPositionId === pos.id }"
-              @click="selectPosition(pos)"
-            >
-              <div class="group-header">
-                <div class="group-title">
-                  <span class="group-name">{{ pos.position }}</span>
-                </div>
-                <div class="group-actions">
-                  <span class="group-meta">{{ pos.resume_count || 0 }} 份</span>
-                  <el-button 
-                    type="primary" 
-                    size="small" 
-                    link 
-                    @click.stop="showAssignDialog(pos)"
-                  >+添加</el-button>
-                </div>
-              </div>
-              <!-- 岗位中的简历列表 -->
-              <div v-if="pos.resumes && pos.resumes.length > 0" class="resumes-preview">
-                <div class="resumes-list">
-                  <div 
-                    v-for="resume in getPagedResumes(pos)" 
-                    :key="resume.id" 
-                    class="resume-item clickable"
-                    @click.stop="showResumeDetail(resume)"
-                  >
-                    <div class="resume-info">
-                      <span class="resume-name">{{ resume.candidate_name || '未知候选人' }}</span>
-                    </div>
-                    <div class="resume-actions">
-                      <el-tag v-if="resume.screening_score" size="small" type="success">
-                        {{ resume.screening_score.comprehensive_score }}
-                      </el-tag>
-                      <el-icon 
-                        class="remove-btn" 
-                        @click.stop="removeResumeFromPosition(pos, resume)"
-                      ><Close /></el-icon>
-                    </div>
-                  </div>
-                </div>
-                <!-- 简洁翻页 -->
-                <div v-if="pos.resumes.length > 8" class="resumes-pagination">
-                  <el-button 
-                    size="small" 
-                    link 
-                    :disabled="(pos as any).currentPage <= 1"
-                    @click.stop="prevPage(pos)"
-                  >上一页</el-button>
-                  <span class="page-info">{{ (pos as any).currentPage || 1 }}/{{ Math.ceil(pos.resumes.length / 8) }}</span>
-                  <el-button 
-                    size="small" 
-                    link 
-                    :disabled="((pos as any).currentPage || 1) >= Math.ceil(pos.resumes.length / 8)"
-                    @click.stop="nextPage(pos)"
-                  >下一页</el-button>
-                </div>
-              </div>
-              <div v-else class="no-resumes">暂无简历</div>
-            </div>
-          </div>
-        </el-card>
+        <PositionList
+          :positions="positionsList"
+          :selected-position-id="selectedPositionId"
+          @select="selectPosition"
+          @assign="showAssignDialog"
+          @show-resume-detail="showResumeDetail"
+          @remove-resume="removeResumeFromPosition"
+        />
       </div>
 
       <!-- 右侧面板 -->
       <div class="right-panel">
         <!-- 文件上传区域 -->
-        <el-card class="upload-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title">简历上传与初筛</span>
-              <el-tag :type="uploadStatus.type" effect="plain">{{ uploadStatus.text }}</el-tag>
-            </div>
-          </template>
-
-          <!-- 上传区域 -->
-          <div
-            class="upload-area"
-            :class="{ 'drag-over': isDragOver }"
-            @drop="handleDrop"
-            @dragover="handleDragover"
-            @dragleave="handleDragleave"
-          >
-            <div class="upload-content">
-              <el-icon :size="48" color="#c0c4cc"><Upload /></el-icon>
-              <div class="upload-text">
-                <p>将简历文件拖拽到此处，或</p>
-                <el-button type="primary" @click="triggerFileInput">点击选择文件</el-button>
-              </div>
-              <p class="upload-hint">支持 PDF、DOC、DOCX、TXT 格式，单个文件不超过10MB</p>
-            </div>
-            <input
-              ref="fileInput"
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,.txt"
-              style="display: none"
-              @change="handleFileSelect"
-            />
-          </div>
-
-          <!-- 文件列表 -->
-          <div v-if="selectedFiles.length > 0" class="file-list">
-            <div class="file-list-header">
-              <h4>已选文件 ({{ selectedFiles.length }})</h4>
-            </div>
-            <div class="file-items">
-              <div v-for="(file, index) in selectedFiles" :key="file.id" class="file-item">
-                <div class="file-info">
-                  <el-icon :size="20" color="#409eff"><Document /></el-icon>
-                  <div class="file-details">
-                    <span class="file-name">{{ file.name }}</span>
-                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
-                  </div>
-                </div>
-                <div class="file-actions">
-                  <el-button v-if="file.status === 'parsing'" size="small" :loading="true" type="info">
-                    解析中
-                  </el-button>
-                  <el-button v-else-if="file.status === 'parsed'" size="small" type="success" @click="previewFile(file)">
-                    预览
-                  </el-button>
-                  <el-button v-else size="small" type="danger" @click="removeFile(index)">
-                    移除
-                  </el-button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="action-buttons">
-              <el-button
-                type="primary"
-                :loading="isSubmitting"
-                :disabled="!hasParsedFiles"
-                @click="submitFiles"
-              >
-                {{ isSubmitting ? '提交中...' : `提交 ${parsedFilesCount} 份简历进行初筛` }}
-              </el-button>
-              <el-button @click="clearAll">清空列表</el-button>
-            </div>
-          </div>
-        </el-card>
+        <ResumeUpload
+          ref="resumeUploadRef"
+          :is-submitting="isSubmitting"
+          @submit="submitFiles"
+          @preview="previewFile"
+          @files-changed="handleFilesChanged"
+        />
 
         <!-- 处理队列 -->
-        <el-card class="queue-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title">简历处理队列</span>
-              <el-tag type="info">队列中 {{ processingQueue.length }} 份</el-tag>
-            </div>
-          </template>
-
-          <div v-if="processingQueue.length === 0" class="empty-queue">
-            <el-empty description="已提交的简历将在此显示" :image-size="60" />
-          </div>
-          <div v-else class="queue-list">
-            <div
-              v-for="(item, idx) in processingQueue"
-              :key="item.task_id || idx"
-              class="queue-item clickable"
-              :class="`status-${item.status}`"
-              @click="showQueueItemDetail(item)"
-            >
-              <div class="queue-info">
-                <div class="queue-name">{{ item.name }}</div>
-                <div class="queue-meta">
-                  <el-tag :type="getStatusType(item.status)" size="small">
-                    {{ getStatusText(item.status) }}
-                  </el-tag>
-                  <span v-if="item.current_speaker" class="speaker">
-                    {{ getSpeakerText(item.current_speaker) }}
-                  </span>
-                </div>
-                <!-- 评分显示 -->
-                <div v-if="item.status === 'completed' && getItemScore(item)" class="scores">
-                  <span class="score-badge">
-                    综合评分: {{ getItemScore(item)?.comprehensive_score }}
-                  </span>
-                </div>
-                <div class="queue-time">{{ formatDate(item.created_at) }}</div>
-              </div>
-              <div class="queue-actions">
-                <el-progress
-                  v-if="item.status === 'running'"
-                  :percentage="item.progress"
-                  :show-text="false"
-                  :stroke-width="6"
-                  status="warning"
-                  style="width: 100px"
-                />
-                <el-button
-                  v-if="item.status === 'completed' && item.report_id"
-                  size="small"
-                  type="success"
-                  @click="downloadReport(item.report_id!)"
-                >
-                  下载报告
-                </el-button>
-                <el-button
-                  v-if="item.status === 'completed'"
-                  size="small"
-                  type="primary"
-                  @click="showAddToGroupDialog(item)"
-                >
-                  加入分组
-                </el-button>
-              </div>
-            </div>
-          </div>
-        </el-card>
+        <ProcessingQueue
+          :queue="processingQueue"
+          @show-detail="showQueueItemDetail"
+          @download-report="downloadReport"
+          @add-to-group="showAddToGroupDialog"
+        />
 
         <!-- 历史任务 -->
-        <el-card class="history-card" shadow="hover">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title">初筛任务历史</span>
-              <el-button type="primary" size="small" :loading="historyLoading" @click="loadHistoryTasks">
-                刷新
-              </el-button>
-            </div>
-          </template>
-
-          <!-- 状态筛选 -->
-          <div class="status-filter">
-            <el-button
-              v-for="status in statusFilters"
-              :key="status.value"
-              :type="historyParams.status === status.value ? status.btnType : 'default'"
-              size="small"
-              @click="filterByStatus(status.value)"
-            >
-              {{ status.label }}
-            </el-button>
-          </div>
-
-          <div v-if="historyTasks.length === 0" class="empty-history">
-            <el-empty description="暂无历史记录" :image-size="60" />
-          </div>
-          <div v-else class="history-list">
-            <div
-              v-for="task in historyTasks"
-              :key="task.task_id"
-              class="history-item clickable"
-              :class="`status-${task.status}`"
-              @click="showHistoryTaskDetail(task)"
-            >
-              <div class="history-info">
-                <div class="history-name">
-                  {{ getHistoryTaskName(task) }}
-                </div>
-                <div class="history-meta">
-                  <el-tag :type="getStatusType(task.status)" size="small">
-                    {{ getStatusText(task.status) }}
-                  </el-tag>
-                  <span v-if="task.status === 'running'">进度: {{ task.progress }}%</span>
-                  <span class="history-time">{{ formatDate(task.created_at) }}</span>
-                </div>
-                <!-- 评分显示 -->
-                <div v-if="task.status === 'completed' && getHistoryTaskScore(task)" class="history-scores">
-                  <el-tag type="success" size="small" effect="plain">
-                    综合: {{ getHistoryTaskScore(task)?.comprehensive_score }}
-                  </el-tag>
-                  <el-tag type="info" size="small" effect="plain">
-                    HR: {{ getHistoryTaskScore(task)?.hr_score }}
-                  </el-tag>
-                  <el-tag type="warning" size="small" effect="plain">
-                    技术: {{ getHistoryTaskScore(task)?.technical_score }}
-                  </el-tag>
-                </div>
-              </div>
-              <div class="history-actions">
-                <el-button
-                  v-if="task.status === 'completed' && task.reports?.length"
-                  size="small"
-                  type="success"
-                  @click="downloadReport(task.reports[0].report_id)"
-                >
-                  下载
-                </el-button>
-                <el-button
-                  v-if="task.status === 'completed'"
-                  size="small"
-                  type="primary"
-                  @click="showAddToGroupDialogFromHistory(task)"
-                >
-                  加入组
-                </el-button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 分页 -->
-          <div v-if="historyTotal > 0" class="pagination">
-            <el-pagination
-              v-model:current-page="historyParams.page"
-              v-model:page-size="historyParams.page_size"
-              :total="historyTotal"
-              :page-sizes="[10, 20, 50]"
-              layout="total, sizes, prev, pager, next"
-              background
-              @current-change="loadHistoryTasks"
-              @size-change="loadHistoryTasks"
-            />
-          </div>
-        </el-card>
+        <TaskHistory
+          :tasks="historyTasks"
+          :total="historyTotal"
+          :loading="historyLoading"
+          :current-status="historyParams.status"
+          v-model:current-page="historyParams.page"
+          v-model:page-size="historyParams.page_size"
+          @refresh="loadHistoryTasks"
+          @filter-by-status="filterByStatus"
+          @show-detail="showHistoryTaskDetail"
+          @download-report="downloadReport"
+          @add-to-group="showAddToGroupDialogFromHistory"
+          @page-change="loadHistoryTasks"
+        />
       </div>
     </div>
 
     <!-- 分配简历到岗位对话框 -->
-    <el-dialog v-model="createGroupDialogVisible" title="分配简历到岗位" width="80%" @close="handleCreateDialogClose">
-      <el-alert
-        title="选择已完成初筛的简历，分配到当前选中的岗位"
-        type="info"
-        show-icon
-        style="margin-bottom: 16px;"
-      />
-      
-      <div v-if="selectedPositionId" class="selected-position-info">
-        <span>目标岗位: </span>
-        <el-tag type="primary">{{ positionData.position }}</el-tag>
-      </div>
-      <div v-else class="no-position-warning">
-        <el-alert title="请先在左侧选择一个岗位" type="warning" show-icon />
-      </div>
-      
-      <div class="resumes-selection">
-        <el-table
-          :data="availableResumes"
-          row-key="id"
-          style="width: 100%"
-          v-loading="resumesLoading"
-          max-height="400"
-        >
-          <el-table-column label="选择" width="60" align="center">
-            <template #default="{ row }">
-              <el-checkbox
-                v-model="selectedResumeIds"
-                :label="row.id"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column prop="candidate_name" label="候选人" min-width="120">
-            <template #default="{ row }">
-              {{ row.candidate_name || '未知候选人' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="综合评分" width="100" align="center">
-            <template #default="{ row }">
-              <span v-if="row.screening_score">{{ row.screening_score.comprehensive_score }}</span>
-              <span v-else>N/A</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="created_at" label="提交时间" width="160">
-            <template #default="{ row }">
-              {{ formatDate(row.created_at) }}
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-      
-      <template #footer>
-        <el-button @click="createGroupDialogVisible = false">取消</el-button>
-        <el-button 
-          type="primary" 
-          @click="assignResumesToPosition"
-          :disabled="selectedResumeIds.length === 0 || !selectedPositionId"
-          :loading="creatingGroup"
-        >
-          分配到岗位 ({{ selectedResumeIds.length }})
-        </el-button>
-      </template>
-    </el-dialog>
+    <AssignResumeDialog
+      v-model="createGroupDialogVisible"
+      :selected-position-id="selectedPositionId"
+      :position-name="positionData.position"
+      :available-resumes="availableResumes"
+      :loading="resumesLoading"
+      :submitting="creatingGroup"
+      @assign="assignResumesToPosition"
+      @close="handleCreateDialogClose"
+    />
 
     <!-- 添加到岗位对话框 -->
-    <el-dialog v-model="addToGroupDialogVisible" title="分配到岗位" width="500px">
-      <el-select v-model="selectedGroupId" placeholder="请选择目标岗位" style="width: 100%">
-        <el-option
-          v-for="pos in positionsList"
-          :key="pos.id"
-          :label="`${pos.position} (${pos.resume_count || 0}份简历)`"
-          :value="pos.id"
-        />
-      </el-select>
-      <template #footer>
-        <el-button @click="addToGroupDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!selectedGroupId" @click="addToGroup">确认分配</el-button>
-      </template>
-    </el-dialog>
+    <AddToGroupDialog
+      v-model="addToGroupDialogVisible"
+      :positions="positionsList"
+      @confirm="addToGroup"
+    />
 
     <!-- 简历预览对话框 -->
-    <el-dialog v-model="previewDialogVisible" title="简历内容预览" width="60%">
-      <div class="preview-content">
-        <h3>{{ previewFileData?.name }}</h3>
-        <pre class="content-display">{{ previewFileData?.content || '无内容' }}</pre>
-      </div>
-      <template #footer>
-        <el-button @click="previewDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
+    <PreviewDialog
+      v-model="previewDialogVisible"
+      :file="previewFileData"
+    />
 
     <!-- 简历详情对话框 -->
-    <el-dialog v-model="resumeDetailVisible" title="简历详情" width="70%">
-      <div v-if="selectedResumeDetail" class="resume-detail-dialog">
-        <!-- 基本信息 -->
-        <div class="detail-section">
-          <h4>候选人信息</h4>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="label">姓名:</span>
-              <span class="value">{{ selectedResumeDetail.candidate_name || '未知' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">岗位:</span>
-              <span class="value">{{ selectedResumeDetail.position_title || '-' }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 初筛评分 -->
-        <div v-if="selectedResumeDetail.screening_score" class="detail-section">
-          <h4>初筛评分</h4>
-          <div class="scores-grid">
-            <div class="score-item">
-              <span class="score-label">综合评分</span>
-              <span class="score-value primary">{{ selectedResumeDetail.screening_score.comprehensive_score }}</span>
-            </div>
-            <div class="score-item">
-              <span class="score-label">HR评分</span>
-              <span class="score-value">{{ selectedResumeDetail.screening_score.hr_score || '-' }}</span>
-            </div>
-            <div class="score-item">
-              <span class="score-label">技术评分</span>
-              <span class="score-value">{{ selectedResumeDetail.screening_score.technical_score || '-' }}</span>
-            </div>
-            <div class="score-item">
-              <span class="score-label">管理评分</span>
-              <span class="score-value">{{ selectedResumeDetail.screening_score.manager_score || '-' }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 初筛评价 -->
-        <div v-if="selectedResumeDetail.screening_summary" class="detail-section">
-          <h4>初筛评价</h4>
-          <div class="markdown-content" v-html="renderMarkdown(selectedResumeDetail.screening_summary)"></div>
-        </div>
-
-        <!-- 简历原文 -->
-        <div class="detail-section">
-          <h4>简历内容</h4>
-          <div 
-            v-if="selectedResumeDetail.resume_content" 
-            class="markdown-content resume-content" 
-            v-html="renderMarkdown(selectedResumeDetail.resume_content, true)"
-          ></div>
-          <div v-else class="no-content">暂无简历内容</div>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="resumeDetailVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
+    <ResumeDetailDialog
+      v-model="resumeDetailVisible"
+      :resume="selectedResumeDetail"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Document, ArrowDown, ArrowUp, Close } from '@element-plus/icons-vue'
-import { marked } from 'marked'
+
+// 组件导入
+import {
+  PositionList,
+  ResumeUpload,
+  ProcessingQueue,
+  TaskHistory,
+  AssignResumeDialog,
+  AddToGroupDialog,
+  PreviewDialog,
+  ResumeDetailDialog
+} from '@/components/screening'
+
+// API 导入
 import { positionApi, screeningApi } from '@/api'
+
+// 类型导入
 import type {
   PositionData,
-  ResumeGroup,
   ResumeScreeningTask,
   ResumeFile,
   ProcessingTask,
-  ScreeningScore,
   ResumeData
 } from '@/types'
 
-// 岗位数据
+// ==================== 状态定义 ====================
+
+// 岗位相关
 const positionData = ref<PositionData>({
   position: '前端开发工程师',
   required_skills: ['HTML', 'JavaScript', 'CSS'],
@@ -526,22 +133,13 @@ const positionData = ref<PositionData>({
   salary_range: [8000, 20000],
   project_requirements: { min_projects: 2, team_lead_experience: false }
 })
-
-// 岗位列表（替代简历组）
 const positionsList = ref<PositionData[]>([])
 const selectedPositionId = ref<string | null>(null)
 
-// 简历组（保留兼容）
-const resumeGroups = ref<ResumeGroup[]>([])
-
-// 文件相关
-const fileInput = ref<HTMLInputElement>()
-const isDragOver = ref(false)
-const selectedFiles = ref<ResumeFile[]>([])
+// 上传相关
+const resumeUploadRef = ref<InstanceType<typeof ResumeUpload>>()
 const isSubmitting = ref(false)
-
-// 上传状态
-const uploadStatus = reactive({ type: 'info' as const, text: '等待上传' })
+const currentFiles = ref<ResumeFile[]>([])
 
 // 处理队列
 const processingQueue = ref<ProcessingTask[]>([])
@@ -553,44 +151,29 @@ const historyParams = reactive({ status: 'completed', page: 1, page_size: 10 })
 const historyTotal = ref(0)
 const historyLoading = ref(false)
 
-// 对话框
+// 对话框状态
 const createGroupDialogVisible = ref(false)
 const addToGroupDialogVisible = ref(false)
 const previewDialogVisible = ref(false)
-const selectedGroupId = ref('')
+const resumeDetailVisible = ref(false)
+
+// 对话框数据
 const previewFileData = ref<ResumeFile | null>(null)
+const selectedResumeDetail = ref<ResumeData | null>(null)
 const currentTaskForGroup = ref<ProcessingTask | null>(null)
 
-// 简历详情对话框
-const resumeDetailVisible = ref(false)
-const selectedResumeDetail = ref<ResumeData | null>(null)
-const currentAssignPosition = ref<PositionData | null>(null)
-
-// 创建简历组相关
+// 简历分配相关
 const availableResumes = ref<ResumeData[]>([])
-const selectedResumeIds = ref<string[]>([])
 const resumesLoading = ref(false)
 const creatingGroup = ref(false)
 
-// 状态筛选选项
-const statusFilters = [
-  { value: 'completed', label: '已完成', btnType: 'success' as const },
-  { value: 'running', label: '处理中', btnType: 'warning' as const },
-  { value: 'failed', label: '失败', btnType: 'danger' as const },
-  { value: 'pending', label: '队列中', btnType: 'info' as const }
-]
+// ==================== 岗位管理 ====================
 
-// 计算属性
-const hasParsedFiles = computed(() => selectedFiles.value.some(f => f.status === 'parsed'))
-const parsedFilesCount = computed(() => selectedFiles.value.filter(f => f.status === 'parsed').length)
-
-// 加载岗位列表（替代简历组）
 const loadPositionsList = async () => {
   try {
     const result = await positionApi.getPositions({ include_resumes: true })
     positionsList.value = (result.positions || []).map(p => ({ ...p, showAll: false }))
     
-    // 如果有岗位且未选中，默认选中第一个
     if (positionsList.value.length > 0 && !selectedPositionId.value) {
       selectedPositionId.value = positionsList.value[0].id || null
       positionData.value = positionsList.value[0]
@@ -600,122 +183,11 @@ const loadPositionsList = async () => {
   }
 }
 
-// 选择岗位
 const selectPosition = (pos: PositionData) => {
   selectedPositionId.value = pos.id || null
   positionData.value = pos
 }
 
-// 切换岗位中简历的展开/收起状态
-const togglePositionResumes = (pos: PositionData & { showAll?: boolean }) => {
-  (pos as any).showAll = !(pos as any).showAll
-}
-
-// 获取分页后的简历列表（每页最多8个）
-const getPagedResumes = (pos: PositionData) => {
-  if (!pos.resumes) return []
-  const page = (pos as any).currentPage || 1
-  const start = (page - 1) * 8
-  return pos.resumes.slice(start, start + 8)
-}
-
-// 上一页
-const prevPage = (pos: PositionData) => {
-  const current = (pos as any).currentPage || 1
-  if (current > 1) {
-    (pos as any).currentPage = current - 1
-  }
-}
-
-// 下一页
-const nextPage = (pos: PositionData) => {
-  const current = (pos as any).currentPage || 1
-  const total = Math.ceil((pos.resumes?.length || 0) / 8)
-  if (current < total) {
-    (pos as any).currentPage = current + 1
-  }
-}
-
-// 显示分配简历到岗位的弹窗
-const showAssignDialog = (pos: PositionData) => {
-  currentAssignPosition.value = pos
-  selectedPositionId.value = pos.id || null
-  showCreateGroupDialog()
-}
-
-// 显示简历详情
-const showResumeDetail = (resume: ResumeData) => {
-  selectedResumeDetail.value = resume
-  resumeDetailVisible.value = true
-}
-
-// 显示处理队列项详情
-const showQueueItemDetail = async (item: ProcessingTask) => {
-  // 构建 ResumeData 格式，缺失字段会在模板中自动隐藏
-  const resumeData: ResumeData = {
-    id: item.report_id || item.task_id || '',
-    candidate_name: item.name,
-    position_title: item.applied_position || '',
-    screening_score: item.resume_data?.[0]?.scores,
-    resume_content: item.reports?.[0]?.resume_content,
-    created_at: item.created_at
-  }
-  
-  // 如果有 report_id，尝试获取更详细的信息
-  if (item.report_id && item.status === 'completed') {
-    try {
-      const detail = await screeningApi.getResumeDetail(item.report_id)
-      if (detail) {
-        resumeData.resume_content = detail.resume_content || resumeData.resume_content
-        resumeData.screening_summary = detail.screening_summary
-        resumeData.screening_score = detail.screening_score || resumeData.screening_score
-      }
-    } catch (err) {
-      // 获取详情失败，使用已有数据
-      console.warn('获取简历详情失败:', err)
-    }
-  }
-  
-  selectedResumeDetail.value = resumeData
-  resumeDetailVisible.value = true
-}
-
-// 显示历史任务详情
-const showHistoryTaskDetail = async (task: ResumeScreeningTask) => {
-  // 后端 resume_data 已包含完整信息，优先使用
-  const taskResumeData = (task.resume_data as any)?.[0]
-  
-  if (taskResumeData) {
-    // 直接使用后端返回的完整数据
-    const resumeData: ResumeData = {
-      id: taskResumeData.id || task.task_id,
-      candidate_name: taskResumeData.candidate_name || getHistoryTaskName(task),
-      position_title: taskResumeData.position_title || '',
-      screening_score: taskResumeData.scores,
-      screening_summary: taskResumeData.summary,
-      resume_content: taskResumeData.resume_content,
-      created_at: task.created_at
-    }
-    selectedResumeDetail.value = resumeData
-    resumeDetailVisible.value = true
-    return
-  }
-  
-  // 降级：如果没有 resume_data，尝试从 report 获取
-  const report = task.reports?.[0]
-  const resumeData: ResumeData = {
-    id: report?.report_id || task.task_id,
-    candidate_name: getHistoryTaskName(task),
-    position_title: '',
-    resume_content: report?.resume_content,
-    created_at: task.created_at
-  }
-  
-  selectedResumeDetail.value = resumeData
-  resumeDetailVisible.value = true
-}
-
-// 从岗位移除简历
 const removeResumeFromPosition = async (pos: PositionData, resume: ResumeData) => {
   if (!pos.id || !resume.id) return
   
@@ -737,226 +209,14 @@ const removeResumeFromPosition = async (pos: PositionData, resume: ResumeData) =
   }
 }
 
-// 加载岗位数据（向后兼容）
-const loadPositionData = async () => {
-  try {
-    const data = await positionApi.getCriteria()
-    positionData.value = data
-  } catch (err) {
-    console.error('加载岗位数据失败:', err)
-  }
+// ==================== 文件上传 ====================
+
+const handleFilesChanged = (files: ResumeFile[]) => {
+  currentFiles.value = files
 }
 
-// 加载简历组（包含简历详情）- 保留兼容
-const loadResumeGroups = async () => {
-  try {
-    const groups = await screeningApi.getGroups({ include_resumes: true })
-    resumeGroups.value = groups.map(g => ({ ...g, showAll: false }))
-  } catch (err) {
-    console.error('加载简历组失败:', err)
-  }
-}
-
-// 切换组中简历的展开/收起状态
-const toggleGroupResumes = (group: ResumeGroup & { showAll?: boolean }) => {
-  group.showAll = !group.showAll
-}
-
-// 加载历史任务
-const loadHistoryTasks = async () => {
-  historyLoading.value = true
-  try {
-    const result = await screeningApi.getTaskHistory(historyParams)
-    historyTasks.value = result.tasks || []
-    historyTotal.value = result.total || 0
-  } catch (err) {
-    console.error('加载历史任务失败:', err)
-  } finally {
-    historyLoading.value = false
-  }
-}
-
-// 筛选状态
-const filterByStatus = (status: string) => {
-  historyParams.status = status
-  historyParams.page = 1
-  loadHistoryTasks()
-}
-
-// 文件处理方法
-const triggerFileInput = () => fileInput.value?.click()
-
-const handleFileSelect = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  if (target.files) {
-    processFiles(Array.from(target.files))
-    target.value = ''
-  }
-}
-
-const handleDrop = (e: DragEvent) => {
-  e.preventDefault()
-  isDragOver.value = false
-  if (e.dataTransfer?.files) {
-    processFiles(Array.from(e.dataTransfer.files))
-  }
-}
-
-const handleDragover = (e: DragEvent) => {
-  e.preventDefault()
-  isDragOver.value = true
-}
-
-const handleDragleave = (e: DragEvent) => {
-  e.preventDefault()
-  isDragOver.value = false
-}
-
-const processFiles = async (files: File[]) => {
-  const validFiles = files.filter(file => {
-    const isValidType = /\.(pdf|doc|docx|txt)$/i.test(file.name)
-    const isValidSize = file.size <= 10 * 1024 * 1024
-    if (!isValidType) ElMessage.error(`"${file.name}" 格式不支持`)
-    if (!isValidSize) ElMessage.error(`"${file.name}" 超过10MB`)
-    return isValidType && isValidSize
-  })
-
-  for (const file of validFiles) {
-    const resumeFile: ResumeFile = {
-      id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-      file,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      content: '',
-      status: 'pending'
-    }
-    selectedFiles.value.push(resumeFile)
-    parseFileContent(resumeFile)
-  }
-
-  if (validFiles.length > 0) {
-    ElMessage.success(`成功添加 ${validFiles.length} 个文件`)
-    updateUploadStatus()
-  }
-}
-
-const parseFileContent = async (resumeFile: ResumeFile) => {
-  const target = selectedFiles.value.find(f => f.id === resumeFile.id)
-  if (!target) return
-
-  target.status = 'parsing'
-  try {
-    const content = await readFileAsText(resumeFile.file)
-    target.content = content.replace(/\s+/g, ' ').trim()
-    target.status = 'parsed'
-  } catch {
-    target.status = 'error'
-    target.error = '解析失败'
-  }
-  updateUploadStatus()
-}
-
-const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as ArrayBuffer)
-    reader.onerror = () => reject(new Error('文件读取失败'))
-    reader.readAsArrayBuffer(file)
-  })
-}
-
-const readFileAsText = async (file: File): Promise<string> => {
-  const name = file.name.toLowerCase()
-  const ext = name.split('.').pop() || ''
-
-  // TXT 文件直接读取
-  if (file.type.includes('text') || ext === 'txt') {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string || '')
-      reader.onerror = () => reject(new Error('文件读取失败'))
-      reader.readAsText(file)
-    })
-  }
-
-  // Word 文件 (.doc, .docx) 使用 mammoth 解析
-  if (ext === 'doc' || ext === 'docx') {
-    try {
-      const mammoth = await import('mammoth')
-      const arrayBuffer = await readFileAsArrayBuffer(file)
-      const result = await mammoth.extractRawText({ arrayBuffer })
-      return result.value || `[${file.name} 的内容解析为空]`
-    } catch (err) {
-      console.error('mammoth 解析失败:', err)
-      return `[${file.name} - Word 解析失败]`
-    }
-  }
-
-  // PDF 文件使用 pdfjs-dist 解析
-  if (ext === 'pdf') {
-    try {
-      const arrayBuffer = await readFileAsArrayBuffer(file)
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-      
-      // 设置 worker
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
-      const pdf = await loadingTask.promise
-
-      let fullText = ''
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i)
-        const content = await page.getTextContent()
-        const strings = content.items.map((item: any) => item.str).join(' ')
-        fullText += strings + '\n'
-      }
-
-      return fullText.trim() || `[${file.name} 的内容解析为空]`
-    } catch (err) {
-      console.error('pdf.js 解析失败:', err)
-      return `[${file.name} - PDF 解析失败]`
-    }
-  }
-
-  // 其他格式
-  return `[${file.name} - 不支持的文件格式]`
-}
-
-const removeFile = (index: number) => {
-  selectedFiles.value.splice(index, 1)
-  updateUploadStatus()
-}
-
-const clearAll = () => {
-  selectedFiles.value = []
-  updateUploadStatus()
-}
-
-const previewFile = (file: ResumeFile) => {
-  previewFileData.value = file
-  previewDialogVisible.value = true
-}
-
-const updateUploadStatus = () => {
-  const total = selectedFiles.value.length
-  const parsed = parsedFilesCount.value
-  if (total === 0) {
-    uploadStatus.type = 'info'
-    uploadStatus.text = '等待上传'
-  } else if (parsed === total) {
-    uploadStatus.type = 'success'
-    uploadStatus.text = `${parsed} 份已就绪`
-  } else {
-    uploadStatus.type = 'warning'
-    uploadStatus.text = `${parsed}/${total} 已解析`
-  }
-}
-
-// 提交文件
 const submitFiles = async () => {
-  const parsedFiles = selectedFiles.value.filter(f => f.status === 'parsed')
+  const parsedFiles = currentFiles.value.filter(f => f.status === 'parsed')
   if (parsedFiles.length === 0) {
     ElMessage.warning('没有已解析的文件可提交')
     return
@@ -964,7 +224,6 @@ const submitFiles = async () => {
 
   isSubmitting.value = true
   try {
-    // 构建符合后端期望的 JSON 格式
     const uploadData = {
       position: positionData.value,
       resumes: parsedFiles.map(file => ({
@@ -977,11 +236,8 @@ const submitFiles = async () => {
       }))
     }
 
-    console.log('提交数据:', uploadData)
-
     const result = await screeningApi.submitScreening(uploadData)
 
-    // 将任务添加到处理队列
     parsedFiles.forEach(file => {
       processingQueue.value.unshift({
         name: file.name,
@@ -993,7 +249,7 @@ const submitFiles = async () => {
       })
     })
 
-    clearAll()
+    resumeUploadRef.value?.clearAll()
     ElMessage.success(`成功提交 ${parsedFiles.length} 份简历进行初筛`)
     startTaskPolling()
   } catch (err) {
@@ -1004,7 +260,13 @@ const submitFiles = async () => {
   }
 }
 
-// 任务轮询
+const previewFile = (file: ResumeFile) => {
+  previewFileData.value = file
+  previewDialogVisible.value = true
+}
+
+// ==================== 任务轮询 ====================
+
 const startTaskPolling = () => {
   if (taskPollingTimer.value) return
   taskPollingTimer.value = window.setInterval(pollTaskStatus, 3000)
@@ -1050,7 +312,29 @@ const pollTaskStatus = async () => {
   }
 }
 
-// 下载报告
+// ==================== 历史任务 ====================
+
+const loadHistoryTasks = async () => {
+  historyLoading.value = true
+  try {
+    const result = await screeningApi.getTaskHistory(historyParams)
+    historyTasks.value = result.tasks || []
+    historyTotal.value = result.total || 0
+  } catch (err) {
+    console.error('加载历史任务失败:', err)
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+const filterByStatus = (status: string) => {
+  historyParams.status = status
+  historyParams.page = 1
+  loadHistoryTasks()
+}
+
+// ==================== 下载报告 ====================
+
 const downloadReport = async (reportId: string) => {
   try {
     const blob = await screeningApi.downloadReport(reportId)
@@ -1065,14 +349,95 @@ const downloadReport = async (reportId: string) => {
   }
 }
 
-// 简历组相关
+// ==================== 简历详情 ====================
+
+const showResumeDetail = (resume: ResumeData) => {
+  selectedResumeDetail.value = resume
+  resumeDetailVisible.value = true
+}
+
+const showQueueItemDetail = async (item: ProcessingTask) => {
+  const resumeData: ResumeData = {
+    id: item.report_id || item.task_id || '',
+    candidate_name: item.name,
+    position_title: item.applied_position || '',
+    screening_score: item.resume_data?.[0]?.scores,
+    resume_content: item.reports?.[0]?.resume_content,
+    created_at: item.created_at
+  }
+  
+  if (item.report_id && item.status === 'completed') {
+    try {
+      const detail = await screeningApi.getResumeDetail(item.report_id)
+      if (detail) {
+        resumeData.resume_content = detail.resume_content || resumeData.resume_content
+        resumeData.screening_summary = detail.screening_summary
+        resumeData.screening_score = detail.screening_score || resumeData.screening_score
+      }
+    } catch (err) {
+      console.warn('获取简历详情失败:', err)
+    }
+  }
+  
+  selectedResumeDetail.value = resumeData
+  resumeDetailVisible.value = true
+}
+
+const showHistoryTaskDetail = async (task: ResumeScreeningTask) => {
+  const taskResumeData = (task.resume_data as any)?.[0]
+  
+  if (taskResumeData) {
+    const resumeData: ResumeData = {
+      id: taskResumeData.id || task.task_id,
+      candidate_name: taskResumeData.candidate_name || getHistoryTaskName(task),
+      position_title: taskResumeData.position_title || '',
+      screening_score: taskResumeData.scores,
+      screening_summary: taskResumeData.summary,
+      resume_content: taskResumeData.resume_content,
+      created_at: task.created_at
+    }
+    selectedResumeDetail.value = resumeData
+    resumeDetailVisible.value = true
+    return
+  }
+  
+  const report = task.reports?.[0]
+  const resumeData: ResumeData = {
+    id: report?.report_id || task.task_id,
+    candidate_name: getHistoryTaskName(task),
+    position_title: '',
+    resume_content: report?.resume_content,
+    created_at: task.created_at
+  }
+  
+  selectedResumeDetail.value = resumeData
+  resumeDetailVisible.value = true
+}
+
+const getHistoryTaskName = (task: ResumeScreeningTask): string => {
+  if (task.resume_data && task.resume_data.length > 0) {
+    const rd = task.resume_data[0] as any
+    if (rd?.candidate_name) return rd.candidate_name
+  }
+  if (task.reports && task.reports.length > 0) {
+    const filename = task.reports[0]?.report_filename
+    return filename?.replace(/\.[^/.]+$/, '') || '未知文件'
+  }
+  return '未知文件'
+}
+
+// ==================== 简历分配 ====================
+
+const showAssignDialog = (pos: PositionData) => {
+  selectedPositionId.value = pos.id || null
+  showCreateGroupDialog()
+}
+
 const showCreateGroupDialog = async () => {
-  selectedResumeIds.value = []
   createGroupDialogVisible.value = true
   await loadAvailableResumes()
 }
 
-// 加载可用于创建组的简历
 const loadAvailableResumes = async () => {
   resumesLoading.value = true
   try {
@@ -1085,40 +450,19 @@ const loadAvailableResumes = async () => {
   }
 }
 
-// 检查简历是否应该被禁用（岗位不一致时）
-const isResumeDisabled = (resume: ResumeData) => {
-  if (selectedResumeIds.value.length === 0) return false
-  const firstSelectedResume = availableResumes.value.find(
-    r => selectedResumeIds.value.includes(r.id)
-  )
-  if (!firstSelectedResume) return false
-  return resume.position_title !== firstSelectedResume.position_title
-}
-
-// 关闭创建弹窗时的清理
 const handleCreateDialogClose = () => {
-  selectedResumeIds.value = []
   availableResumes.value = []
 }
 
-// 分配简历到当前选中的岗位
-const assignResumesToPosition = async () => {
-  if (selectedResumeIds.value.length === 0) {
-    ElMessage.warning('请至少选择一份简历')
-    return
-  }
-  
-  if (!selectedPositionId.value) {
-    ElMessage.warning('请先选择一个目标岗位')
-    return
-  }
+const assignResumesToPosition = async (resumeIds: string[]) => {
+  if (resumeIds.length === 0 || !selectedPositionId.value) return
   
   creatingGroup.value = true
   try {
-    const result = await positionApi.assignResumes(selectedPositionId.value, selectedResumeIds.value)
+    const result = await positionApi.assignResumes(selectedPositionId.value, resumeIds)
     ElMessage.success(`成功分配 ${result.assigned_count} 份简历到岗位`)
     createGroupDialogVisible.value = false
-    loadPositionsList()  // 刷新岗位列表
+    loadPositionsList()
   } catch (err) {
     console.error('分配简历失败:', err)
     ElMessage.error('分配简历失败')
@@ -1127,146 +471,12 @@ const assignResumesToPosition = async () => {
   }
 }
 
-// 保留旧的 createGroup 函数用于兼容
-const createGroup = async () => {
-  await assignResumesToPosition()
-}
-
 const showAddToGroupDialog = (task: ProcessingTask) => {
   currentTaskForGroup.value = task
-  selectedGroupId.value = ''
   addToGroupDialogVisible.value = true
 }
 
-// 添加简历到指定岗位
-const addToGroup = async () => {
-  if (!selectedGroupId.value || !currentTaskForGroup.value?.report_id) return
-  try {
-    await positionApi.assignResumes(selectedGroupId.value, [currentTaskForGroup.value.report_id])
-    ElMessage.success('分配成功')
-    addToGroupDialogVisible.value = false
-    loadPositionsList()  // 刷新岗位列表
-  } catch (err) {
-    ElMessage.error('分配失败')
-  }
-}
-
-// 工具函数
-const renderMarkdown = (content: string, isResume = false): string => {
-  if (!content) return ''
-  
-  if (isResume) {
-    // 简历内容特殊处理：原文没有换行符，使用 \u200b 作为分隔
-    let processed = content
-      // 移除零宽空格，在其前面添加换行（这些通常是段落分隔）
-      .replace(/\u200b([^|\u200b]+)\u200b/g, '\n\n**$1**\n')  // 将 \u200b标题\u200b 转为加粗标题
-      .replace(/\u200b/g, '\n\n')  // 剩余的零宽空格转换行
-      // 在常见分隔符处添加换行
-      .replace(/([。！？])\s*/g, '$1\n')  // 句号后换行
-      .replace(/\s*\|\s*/g, ' | ')  // 规范化竖线分隔符
-      .replace(/(\d{4}-\d{4})\s*(?=[^\d])/g, '$1\n')  // 年份范围后换行
-      .trim()
-    
-    return marked(processed) as string
-  }
-  
-  return marked(content) as string
-}
-
-const formatFileSize = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-const getStatusType = (status: string) => {
-  const types: Record<string, string> = {
-    pending: 'warning',
-    running: 'primary',
-    completed: 'success',
-    failed: 'danger'
-  }
-  return types[status] || 'info'
-}
-
-const getStatusText = (status: string) => {
-  const texts: Record<string, string> = {
-    pending: '队列中',
-    running: '处理中',
-    completed: '已完成',
-    failed: '失败'
-  }
-  return texts[status] || status
-}
-
-const getGroupStatusType = (status: string) => {
-  const types: Record<string, string> = {
-    pending: 'warning',
-    interview_analysis: 'primary',
-    completed: 'success'
-  }
-  return types[status] || 'info'
-}
-
-const getGroupStatusText = (status: string) => {
-  const texts: Record<string, string> = {
-    pending: '待处理',
-    interview_analysis: '面试分析中',
-    interview_analysis_completed: '面试分析完成',
-    comprehensive_screening: '综合筛选中',
-    completed: '已完成'
-  }
-  return texts[status] || status
-}
-
-const getSpeakerText = (speaker: string) => {
-  const map: Record<string, string> = {
-    'HR_Expert': 'HR评分中...',
-    'Technical_Expert': '技术评分中...',
-    'Project_Manager_Expert': '管理评分中...',
-    'Critic': '生成报告中...'
-  }
-  return map[speaker] || speaker
-}
-
-const getItemScore = (item: ProcessingTask): ScreeningScore | null => {
-  return item.resume_data?.[0]?.scores || null
-}
-
-// 历史任务辅助函数
-const getHistoryTaskName = (task: ResumeScreeningTask): string => {
-  // 优先从 resume_data 获取候选人名
-  if (task.resume_data && task.resume_data.length > 0) {
-    const rd = task.resume_data[0] as any
-    if (rd.candidate_name) return rd.candidate_name
-  }
-  // 其次从 reports 获取文件名
-  if (task.reports && task.reports.length > 0) {
-    const filename = task.reports[0].report_filename
-    // 移除扩展名
-    return filename?.replace(/\.[^/.]+$/, '') || '未知文件'
-  }
-  return '未知文件'
-}
-
-const getHistoryTaskScore = (task: ResumeScreeningTask): ScreeningScore | null => {
-  if (task.resume_data && task.resume_data.length > 0) {
-    return task.resume_data[0].scores || null
-  }
-  return null
-}
-
 const showAddToGroupDialogFromHistory = (task: ResumeScreeningTask) => {
-  // 从历史任务获取 resume_data_id
   const resumeDataId = (task.resume_data?.[0] as any)?.id || task.reports?.[0]?.report_id
   if (resumeDataId) {
     currentTaskForGroup.value = {
@@ -1279,16 +489,28 @@ const showAddToGroupDialogFromHistory = (task: ResumeScreeningTask) => {
       reports: task.reports,
       resume_data: task.resume_data
     }
-    selectedGroupId.value = ''
     addToGroupDialogVisible.value = true
   } else {
     ElMessage.warning('无法获取简历数据ID')
   }
 }
 
-// 生命周期
+const addToGroup = async (groupId: string) => {
+  if (!currentTaskForGroup.value?.report_id) return
+  try {
+    await positionApi.assignResumes(groupId, [currentTaskForGroup.value.report_id])
+    ElMessage.success('分配成功')
+    addToGroupDialogVisible.value = false
+    loadPositionsList()
+  } catch (err) {
+    ElMessage.error('分配失败')
+  }
+}
+
+// ==================== 生命周期 ====================
+
 onMounted(() => {
-  loadPositionsList()  // 加载岗位列表（替代 loadResumeGroups）
+  loadPositionsList()
   loadHistoryTasks()
 })
 
@@ -1326,602 +548,16 @@ onUnmounted(() => {
   align-items: start;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-
-// 左侧面板
 .left-panel {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.position-info {
-  .info-item {
-    display: flex;
-    margin-bottom: 12px;
-
-    &.skills {
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .label {
-      color: #909399;
-      font-size: 13px;
-      min-width: 70px;
-    }
-
-    .value {
-      color: #303133;
-      font-size: 13px;
-    }
-
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-  }
-}
-
-.groups-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.group-item-card {
-  padding: 12px;
-  background: #fafafa;
-  border-radius: 8px;
-  border: 2px solid #e4e7ed;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #f0f2f5;
-  }
-
-  &.active {
-    background: #ecf5ff;
-    border-color: #409eff;
-  }
-
-  .group-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
-
-    .group-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-
-      .group-name {
-        font-size: 14px;
-        font-weight: 600;
-        color: #303133;
-      }
-    }
-
-    .group-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      
-      .group-meta {
-        font-size: 12px;
-        color: #909399;
-      }
-    }
-  }
-
-  .resumes-preview {
-    .resumes-title {
-      font-size: 12px;
-      color: #606266;
-      margin-bottom: 8px;
-    }
-
-    .resumes-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-
-      .resume-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 6px 10px;
-        background: #fff;
-        border-radius: 4px;
-        border: 1px solid #ebeef5;
-
-        &.clickable {
-          cursor: pointer;
-          transition: all 0.2s;
-          
-          &:hover {
-            background: #f5f7fa;
-            border-color: #409eff;
-          }
-        }
-
-        .resume-info {
-          display: flex;
-          flex-direction: column;
-
-          .resume-name {
-            font-size: 13px;
-            font-weight: 500;
-            color: #303133;
-          }
-        }
-
-        .resume-actions {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          
-          .remove-btn {
-            color: #c0c4cc;
-            cursor: pointer;
-            font-size: 14px;
-            
-            &:hover {
-              color: #f56c6c;
-            }
-          }
-        }
-      }
-
-      .toggle-resumes {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px;
-        color: #409eff;
-        cursor: pointer;
-        font-size: 12px;
-
-        &:hover {
-          color: #66b1ff;
-        }
-
-        .el-icon {
-          margin-left: 4px;
-        }
-      }
-    }
-
-    .resumes-pagination {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding-top: 8px;
-      border-top: 1px solid #ebeef5;
-      margin-top: 8px;
-      
-      .page-info {
-        font-size: 12px;
-        color: #909399;
-      }
-    }
-  }
-
-  .no-resumes {
-    font-size: 12px;
-    color: #c0c4cc;
-    text-align: center;
-    padding: 8px;
-  }
-}
-
-// 简历详情弹窗
-.resume-detail-dialog {
-  .detail-section {
-    margin-bottom: 24px;
-    
-    h4 {
-      margin: 0 0 12px 0;
-      font-size: 15px;
-      font-weight: 600;
-      color: #303133;
-      border-left: 3px solid #409eff;
-      padding-left: 10px;
-    }
-  }
-  
-  .info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    
-    .info-item {
-      .label {
-        color: #909399;
-        margin-right: 8px;
-      }
-      .value {
-        color: #303133;
-        font-weight: 500;
-      }
-    }
-  }
-  
-  .scores-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    
-    .score-item {
-      text-align: center;
-      padding: 12px;
-      background: #f5f7fa;
-      border-radius: 8px;
-      
-      .score-label {
-        display: block;
-        font-size: 12px;
-        color: #909399;
-        margin-bottom: 6px;
-      }
-      
-      .score-value {
-        display: block;
-        font-size: 20px;
-        font-weight: 600;
-        color: #67c23a;
-        
-        &.primary {
-          font-size: 24px;
-          color: #409eff;
-        }
-      }
-    }
-  }
-  
-  .summary-content {
-    padding: 12px 16px;
-    background: #fafafa;
-    border-radius: 6px;
-    line-height: 1.6;
-    color: #606266;
-  }
-  
-  .markdown-content {
-    padding: 16px;
-    background: #fafafa;
-    border-radius: 6px;
-    font-size: 14px;
-    line-height: 1.8;
-    color: #303133;
-    
-    :deep(h1), :deep(h2), :deep(h3), :deep(h4) {
-      margin: 12px 0 8px 0;
-      font-weight: 600;
-      color: #303133;
-    }
-    
-    :deep(h1) { font-size: 18px; }
-    :deep(h2) { font-size: 16px; }
-    :deep(h3) { font-size: 15px; }
-    :deep(h4) { font-size: 14px; }
-    
-    :deep(p) {
-      margin: 8px 0;
-    }
-    
-    :deep(ul), :deep(ol) {
-      padding-left: 20px;
-      margin: 8px 0;
-    }
-    
-    :deep(li) {
-      margin: 4px 0;
-    }
-    
-    :deep(strong) {
-      font-weight: 600;
-      color: #303133;
-    }
-    
-    :deep(code) {
-      background: #e8e8e8;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-    
-    :deep(pre) {
-      background: #2d2d2d;
-      color: #f8f8f2;
-      padding: 12px;
-      border-radius: 6px;
-      overflow-x: auto;
-    }
-    
-    :deep(table) {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 12px 0;
-      
-      th, td {
-        border: 1px solid #e4e7ed;
-        padding: 8px 12px;
-        text-align: left;
-      }
-      
-      th {
-        background: #f5f7fa;
-        font-weight: 600;
-      }
-    }
-    
-    &.resume-content {
-      max-height: 400px;
-      overflow-y: auto;
-    }
-  }
-  
-  .no-content {
-    padding: 20px;
-    text-align: center;
-    color: #909399;
-    background: #fafafa;
-    border-radius: 6px;
-  }
-}
-
-// 分配简历到岗位弹窗
-.selected-position-info {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #f0f9eb;
-  border-radius: 6px;
-  
-  span {
-    color: #606266;
-  }
-}
-
-.no-position-warning {
-  margin-bottom: 16px;
-}
-
-.resumes-selection {
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-// 右侧面板
 .right-panel {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-// 上传区域
-.upload-area {
-  border: 2px dashed #dcdfe6;
-  border-radius: 8px;
-  padding: 40px 20px;
-  text-align: center;
-  transition: all 0.2s;
-
-  &:hover,
-  &.drag-over {
-    border-color: #409eff;
-    background: #ecf5ff;
-  }
-}
-
-.upload-content {
-  .upload-text {
-    margin: 16px 0;
-
-    p {
-      margin: 0 0 8px 0;
-      color: #606266;
-    }
-  }
-
-  .upload-hint {
-    margin: 0;
-    font-size: 12px;
-    color: #909399;
-  }
-}
-
-// 文件列表
-.file-list {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #e4e7ed;
-}
-
-.file-list-header h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #303133;
-}
-
-.file-items {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.file-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  background: #fafafa;
-  border-radius: 6px;
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.file-details {
-  .file-name {
-    display: block;
-    font-size: 13px;
-    color: #303133;
-  }
-
-  .file-size {
-    display: block;
-    font-size: 12px;
-    color: #909399;
-  }
-}
-
-.action-buttons {
-  margin-top: 16px;
-  display: flex;
-  gap: 12px;
-}
-
-// 队列和历史列表
-.queue-list,
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.queue-item,
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  background: #fafafa;
-  border-radius: 6px;
-  border-left: 3px solid transparent;
-  transition: all 0.2s;
-
-  &.clickable {
-    cursor: pointer;
-    
-    &:hover {
-      background: #f0f5ff;
-      box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
-    }
-  }
-
-  &.status-pending { border-left-color: #e6a23c; }
-  &.status-running { border-left-color: #409eff; }
-  &.status-completed { border-left-color: #67c23a; }
-  &.status-failed { border-left-color: #f56c6c; }
-}
-
-.queue-info,
-.history-info {
-  .queue-name,
-  .history-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: #303133;
-    margin-bottom: 6px;
-  }
-
-  .queue-meta,
-  .history-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: #909399;
-  }
-
-  .scores,
-  .history-scores {
-    margin-top: 6px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    
-    .score-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      background: #f0f9eb;
-      color: #67c23a;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-  }
-
-  .queue-time,
-  .history-time {
-    font-size: 12px;
-    color: #c0c4cc;
-  }
-}
-
-.queue-actions,
-.history-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-// 状态筛选
-.status-filter {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-// 分页
-.pagination {
-  margin-top: 16px;
-  display: flex;
-  justify-content: center;
-}
-
-// 预览内容
-.preview-content {
-  h3 {
-    margin: 0 0 16px 0;
-    color: #303133;
-  }
-
-  .content-display {
-    background: #f6f8fa;
-    padding: 16px;
-    border-radius: 6px;
-    max-height: 400px;
-    overflow: auto;
-    white-space: pre-wrap;
-    font-family: monospace;
-    font-size: 13px;
-    color: #303133;
-  }
-}
-
-// 空状态
-.empty-groups,
-.empty-queue,
-.empty-history {
-  padding: 20px 0;
 }
 
 @media (max-width: 1200px) {

@@ -10,6 +10,7 @@
   ],
   "compilerOptions": {
     "types": ["vite/client", "echarts"],
+    "module": "esnext",
     "moduleResolution": "bundler"
   }
 }
