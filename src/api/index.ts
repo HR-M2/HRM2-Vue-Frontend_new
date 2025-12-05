@@ -35,11 +35,12 @@ apiClient.interceptors.response.use(
 
 /**
  * 岗位设置 API
+ * 后端路径: /position-settings/
  */
 export const positionApi = {
   // 获取岗位设置
   getCriteria: async (): Promise<PositionData> => {
-    const response = await fetch(`${API_BASE}/api/v1/positions/criteria/`)
+    const response = await fetch(`${API_BASE}/position-settings/`)
     if (!response.ok) {
       throw new Error(`获取数据失败: ${response.status}`)
     }
@@ -52,7 +53,7 @@ export const positionApi = {
 
   // 保存岗位设置
   saveCriteria: async (data: PositionData): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/v1/positions/criteria/`, {
+    const response = await fetch(`${API_BASE}/position-settings/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -65,11 +66,12 @@ export const positionApi = {
 
 /**
  * 简历筛选 API
+ * 后端路径: /resume-screening/
  */
 export const screeningApi = {
   // 提交筛选任务
   submitScreening: async (formData: FormData): Promise<ResumeScreeningTask> => {
-    const response = await fetch(`${API_BASE}/api/v1/screening/screening/`, {
+    const response = await fetch(`${API_BASE}/resume-screening/screening/`, {
       method: 'POST',
       body: formData
     })
@@ -82,7 +84,7 @@ export const screeningApi = {
 
   // 查询任务状态
   getTaskStatus: async (taskId: string): Promise<ResumeScreeningTask> => {
-    const response = await fetch(`${API_BASE}/api/v1/screening/tasks/${taskId}/status/`)
+    const response = await fetch(`${API_BASE}/resume-screening/tasks/${taskId}/status/`)
     if (!response.ok) {
       throw new Error(`获取状态失败: ${response.status}`)
     }
@@ -101,7 +103,7 @@ export const screeningApi = {
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString())
 
-    const response = await fetch(`${API_BASE}/api/v1/screening/tasks-history/?${searchParams}`)
+    const response = await fetch(`${API_BASE}/resume-screening/tasks-history/?${searchParams}`)
     if (!response.ok) {
       throw new Error(`获取历史失败: ${response.status}`)
     }
@@ -111,7 +113,7 @@ export const screeningApi = {
 
   // 获取简历组列表
   getGroups: async (): Promise<ResumeGroup[]> => {
-    const response = await fetch(`${API_BASE}/api/v1/screening/groups/`)
+    const response = await fetch(`${API_BASE}/resume-screening/groups/`)
     if (!response.ok) {
       throw new Error(`获取简历组失败: ${response.status}`)
     }
@@ -121,7 +123,7 @@ export const screeningApi = {
 
   // 获取简历组详情
   getGroupDetail: async (groupId: string): Promise<ResumeGroup> => {
-    const response = await fetch(`${API_BASE}/api/v1/screening/groups/${groupId}/`)
+    const response = await fetch(`${API_BASE}/resume-screening/groups/${groupId}/`)
     if (!response.ok) {
       throw new Error(`获取简历组详情失败: ${response.status}`)
     }
@@ -135,7 +137,7 @@ export const screeningApi = {
     position_title: string
     description?: string
   }): Promise<ResumeGroup> => {
-    const response = await fetch(`${API_BASE}/api/v1/screening/groups/create/`, {
+    const response = await fetch(`${API_BASE}/resume-screening/groups/create/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -152,7 +154,7 @@ export const screeningApi = {
     group_id: string
     resume_data_id: string
   }): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/v1/screening/groups/add-resume/`, {
+    const response = await fetch(`${API_BASE}/resume-screening/groups/add-resume/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -164,7 +166,7 @@ export const screeningApi = {
 
   // 下载报告
   downloadReport: async (reportId: string): Promise<Blob> => {
-    const response = await fetch(`${API_BASE}/api/v1/screening/reports/${reportId}/download/`)
+    const response = await fetch(`${API_BASE}/resume-screening/reports/${reportId}/download/`)
     if (!response.ok) {
       throw new Error(`下载报告失败: ${response.status}`)
     }
@@ -173,7 +175,7 @@ export const screeningApi = {
 
   // 获取简历数据
   getResumeData: async (): Promise<ResumeData[]> => {
-    const response = await fetch(`${API_BASE}/api/v1/screening/data/`)
+    const response = await fetch(`${API_BASE}/resume-screening/data/`)
     if (!response.ok) {
       throw new Error(`获取简历数据失败: ${response.status}`)
     }
@@ -184,11 +186,12 @@ export const screeningApi = {
 
 /**
  * 视频分析 API
+ * 后端路径: /video-analysis/
  */
 export const videoApi = {
   // 上传视频
   uploadVideo: async (formData: FormData): Promise<VideoAnalysis> => {
-    const response = await fetch(`${API_BASE}/api/v1/video/`, {
+    const response = await fetch(`${API_BASE}/video-analysis/`, {
       method: 'POST',
       body: formData
     })
@@ -201,7 +204,7 @@ export const videoApi = {
 
   // 获取视频分析状态
   getVideoStatus: async (videoId: string): Promise<VideoAnalysis> => {
-    const response = await fetch(`${API_BASE}/api/v1/video/${videoId}/status/`)
+    const response = await fetch(`${API_BASE}/video-analysis/${videoId}/status/`)
     if (!response.ok) {
       throw new Error(`获取状态失败: ${response.status}`)
     }
@@ -211,7 +214,7 @@ export const videoApi = {
 
   // 获取视频列表
   getVideoList: async (): Promise<VideoAnalysis[]> => {
-    const response = await fetch(`${API_BASE}/api/v1/video/list/`)
+    const response = await fetch(`${API_BASE}/video-analysis/list/`)
     if (!response.ok) {
       throw new Error(`获取视频列表失败: ${response.status}`)
     }
@@ -222,11 +225,12 @@ export const videoApi = {
 
 /**
  * 最终推荐 API
+ * 后端路径: /final-recommend/
  */
 export const recommendApi = {
   // 创建评估任务
   createEvaluation: async (groupId: string): Promise<InterviewEvaluationTask> => {
-    const response = await fetch(`${API_BASE}/api/v1/recommend/interview-evaluation/`, {
+    const response = await fetch(`${API_BASE}/final-recommend/interview-evaluation/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ group_id: groupId })
@@ -240,7 +244,7 @@ export const recommendApi = {
 
   // 获取评估任务状态
   getEvaluationStatus: async (taskId: string): Promise<InterviewEvaluationTask> => {
-    const response = await fetch(`${API_BASE}/api/v1/recommend/interview-evaluation/${taskId}/`)
+    const response = await fetch(`${API_BASE}/final-recommend/interview-evaluation/${taskId}/`)
     if (!response.ok) {
       throw new Error(`获取评估状态失败: ${response.status}`)
     }
@@ -250,7 +254,7 @@ export const recommendApi = {
 
   // 获取评估任务列表
   getEvaluationList: async (): Promise<InterviewEvaluationTask[]> => {
-    const response = await fetch(`${API_BASE}/api/v1/recommend/interview-evaluation/`)
+    const response = await fetch(`${API_BASE}/final-recommend/interview-evaluation/`)
     if (!response.ok) {
       throw new Error(`获取评估列表失败: ${response.status}`)
     }
@@ -260,7 +264,7 @@ export const recommendApi = {
 
   // 停止评估任务
   stopEvaluation: async (taskId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/api/v1/recommend/interview-evaluation/${taskId}/delete/`, {
+    const response = await fetch(`${API_BASE}/final-recommend/interview-evaluation/${taskId}/delete/`, {
       method: 'DELETE'
     })
     if (!response.ok) {
@@ -270,7 +274,7 @@ export const recommendApi = {
 
   // 下载报告
   downloadReport: async (filePath: string): Promise<Blob> => {
-    const response = await fetch(`${API_BASE}/api/v1/recommend/download-report/${filePath}`)
+    const response = await fetch(`${API_BASE}/final-recommend/download-report/${filePath}`)
     if (!response.ok) {
       throw new Error(`下载报告失败: ${response.status}`)
     }
