@@ -202,6 +202,8 @@ const handleUseInterestPoint = (point: ResumeInterestPoint) => {
 </script>
 
 <style scoped lang="scss">
+@use './styles/interview-common' as common;
+
 .question-suggestion {
   height: 100%;
   display: flex;
@@ -605,21 +607,15 @@ const handleUseInterestPoint = (point: ResumeInterestPoint) => {
   }
 }
 
-// 动画
+// 动画定义（scoped 样式需要本地定义）
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
 }
 
 @keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .fade-enter-active,

@@ -330,6 +330,8 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+@use './styles/interview-common' as common;
+
 .setup-area {
   padding: 40px;
   display: flex;
@@ -582,7 +584,7 @@ onMounted(() => {
     padding: 16px 48px;
     font-size: 18px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: common.$danger-gradient;
     border: none;
     
     &:hover:not(:disabled) {
@@ -591,14 +593,7 @@ onMounted(() => {
   }
 }
 
-.mr-2 {
-  margin-right: 8px;
-}
-
-@keyframes pulse-red {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
-}
+// 使用共享样式中的 pulse-red 动画和 .mr-2
 
 @media (max-width: 1200px) {
   .config-cards {

@@ -231,169 +231,28 @@ watch(() => props.messages.length, () => {
 </script>
 
 <style scoped lang="scss">
+@use './styles/interview-common' as common;
+
 .chat-section {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid common.$border-color;
 }
 
 .chat-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  
-  .messages-list {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
+  @include common.chat-container;
 }
 
 .message-item {
-  display: flex;
-  gap: 14px;
-  animation: slideIn 0.3s ease;
-  
-  &.message-system {
-    justify-content: center;
-    
-    .message-avatar { display: none; }
-    
-    .message-body {
-      background: #fef3c7;
-      border-radius: 8px;
-      padding: 10px 16px;
-      
-      .message-header { display: none; }
-      
-      .message-content {
-        color: #92400e;
-        font-size: 14px;
-        text-align: center;
-      }
-    }
-  }
-  
-  &.message-interviewer {
-    .message-body {
-      background: #eff6ff;
-      border-left: 4px solid #3b82f6;
-    }
-  }
-  
-  &.message-candidate {
-    .message-body {
-      background: #f0fdf4;
-      border-left: 4px solid #10b981;
-    }
-  }
-  
-  .message-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    flex-shrink: 0;
-  }
-  
-  .message-body {
-    flex: 1;
-    padding: 16px;
-    border-radius: 12px;
-    
-    .message-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-      
-      .role-name {
-        font-weight: 600;
-        color: #374151;
-        font-size: 14px;
-      }
-      
-      .timestamp {
-        font-size: 12px;
-        color: #9ca3af;
-      }
-    }
-    
-    .message-content {
-      color: #4b5563;
-      line-height: 1.6;
-    }
-  }
+  @include common.message-item;
 }
 
 .evaluation-badge {
-  margin-top: 12px;
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  
-  .eval-score {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    
-    &.score-excellent { background: linear-gradient(135deg, #10b981, #059669); }
-    &.score-good { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-    &.score-average { background: linear-gradient(135deg, #f59e0b, #d97706); }
-    &.score-poor { background: linear-gradient(135deg, #ef4444, #dc2626); }
-    
-    .score-value {
-      font-size: 18px;
-      font-weight: 700;
-      color: white;
-    }
-    
-    .score-label {
-      font-size: 10px;
-      color: rgba(255, 255, 255, 0.8);
-    }
-  }
-  
-  .eval-info {
-    flex: 1;
-    
-    .recommendation {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 500;
-      background: #e5e7eb;
-      color: #374151;
-      margin-bottom: 6px;
-    }
-    
-    .feedback {
-      display: block;
-      font-size: 13px;
-      color: #6b7280;
-      line-height: 1.5;
-    }
-  }
+  @include common.evaluation-badge;
 }
 
 .input-section {
-  padding: 16px 24px;
-  background: white;
-  border-top: 1px solid #e5e7eb;
+  @include common.input-section;
   
   .interviewer-input,
   .candidate-input {
@@ -401,84 +260,23 @@ watch(() => props.messages.length, () => {
     
     &:last-child { margin-bottom: 0; }
     
-    .input-label {
+    .input-actions {
       display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #6b7280;
-      margin-bottom: 8px;
+      flex-direction: column;
+      gap: 8px;
     }
     
-    .input-row {
-      display: flex;
-      gap: 12px;
-      
-      .el-textarea { flex: 1; }
-      
-      .input-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        
-        .mic-btn {
-          width: 48px;
-          height: 48px;
-          transition: all 0.3s ease;
-          
-          &.recording {
-            animation: pulse-recording 1.5s infinite;
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
-          }
-        }
-      }
-      
-      :deep(.recording-active) {
-        .el-textarea__inner {
-          border-color: #ef4444 !important;
-          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
-          animation: border-pulse 2s infinite;
-        }
+    :deep(.recording-active) {
+      .el-textarea__inner {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+        animation: border-pulse 2s infinite;
       }
     }
   }
-  
-  .recording-tag {
-    animation: tag-pulse 1s infinite;
-  }
 }
 
-.rec-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #ef4444;
-  margin-right: 4px;
-  animation: pulse 1s infinite;
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-@keyframes pulse-recording {
-  0%, 100% { 
-    transform: scale(1);
-    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
-  }
-  50% { 
-    transform: scale(1.05);
-    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.15);
-  }
-}
+@include common.recording-styles;
 
 @keyframes border-pulse {
   0%, 100% { 
@@ -489,11 +287,6 @@ watch(() => props.messages.length, () => {
     border-color: #f87171;
     box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.1);
   }
-}
-
-@keyframes tag-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
 }
 
 .message-enter-active,

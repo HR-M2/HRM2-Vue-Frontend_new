@@ -44,13 +44,10 @@ const formatDuration = computed(() => {
 </script>
 
 <style scoped lang="scss">
+@use './styles/interview-common' as common;
+
 .status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  @include common.status-bar;
   
   .status-left {
     display: flex;
@@ -71,7 +68,7 @@ const formatDuration = computed(() => {
     
     .status-text {
       font-weight: 500;
-      color: #374151;
+      color: common.$text-secondary;
     }
   }
   
@@ -80,11 +77,7 @@ const formatDuration = computed(() => {
     gap: 24px;
     
     .stat-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: #6b7280;
-      font-size: 14px;
+      @include common.stat-item;
     }
   }
 }

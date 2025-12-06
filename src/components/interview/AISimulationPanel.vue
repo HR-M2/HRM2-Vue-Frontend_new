@@ -317,6 +317,8 @@ watch(() => props.messages.length, () => {
 </script>
 
 <style scoped lang="scss">
+@use './styles/interview-common' as common;
+
 .ai-simulation-panel {
   height: 100%;
   display: flex;
@@ -589,161 +591,23 @@ watch(() => props.messages.length, () => {
 }
 
 .chat-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  
-  .messages-list {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
+  @include common.chat-container;
 }
 
 .message-item {
-  display: flex;
-  gap: 14px;
-  animation: slideIn 0.3s ease;
-  
-  &.message-system {
-    justify-content: center;
-    
-    .message-avatar { display: none; }
-    
-    .message-body {
-      background: #fef3c7;
-      border-radius: 8px;
-      padding: 10px 16px;
-      
-      .message-header { display: none; }
-      
-      .message-content {
-        color: #92400e;
-        font-size: 14px;
-        text-align: center;
-      }
-    }
-  }
-  
-  &.message-interviewer {
-    .message-body {
-      background: #eff6ff;
-      border-left: 4px solid #3b82f6;
-    }
-  }
-  
-  &.message-candidate {
-    .message-body {
-      background: #f0fdf4;
-      border-left: 4px solid #10b981;
-    }
-  }
-  
-  .message-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    flex-shrink: 0;
-  }
+  @include common.message-item;
   
   .message-body {
-    flex: 1;
-    padding: 16px;
-    border-radius: 12px;
     max-width: 85%;
     
-    .message-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-      
-      .role-name {
-        font-weight: 600;
-        color: #374151;
-        font-size: 14px;
-      }
-      
-      .timestamp {
-        font-size: 12px;
-        color: #9ca3af;
-      }
-    }
-    
-    .message-content {
-      color: #4b5563;
-      line-height: 1.6;
-      
-      .typing-cursor {
-        animation: blink 0.8s infinite;
-      }
+    .message-content .typing-cursor {
+      animation: blink 0.8s infinite;
     }
   }
 }
 
 .evaluation-badge {
-  margin-top: 12px;
-  padding: 12px;
-  background: white;
-  border-radius: 8px;
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  
-  .eval-score {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    
-    &.score-excellent { background: linear-gradient(135deg, #10b981, #059669); }
-    &.score-good { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-    &.score-average { background: linear-gradient(135deg, #f59e0b, #d97706); }
-    &.score-poor { background: linear-gradient(135deg, #ef4444, #dc2626); }
-    
-    .score-value {
-      font-size: 18px;
-      font-weight: 700;
-      color: white;
-    }
-    
-    .score-label {
-      font-size: 10px;
-      color: rgba(255, 255, 255, 0.8);
-    }
-  }
-  
-  .eval-info {
-    flex: 1;
-    
-    .recommendation {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 500;
-      background: #e5e7eb;
-      color: #374151;
-      margin-bottom: 6px;
-    }
-    
-    .feedback {
-      display: block;
-      font-size: 13px;
-      color: #6b7280;
-      line-height: 1.5;
-    }
-  }
+  @include common.evaluation-badge;
 }
 
 .typing-indicator {
@@ -857,25 +721,10 @@ watch(() => props.messages.length, () => {
   gap: 12px;
 }
 
-// 动画
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
+// 动画 - 使用共享样式中的定义
 @keyframes scaleIn {
   from { transform: scale(0); }
   to { transform: scale(1); }
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
 }
 
 @keyframes bounce {
@@ -901,9 +750,5 @@ watch(() => props.messages.length, () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.mr-2 {
-  margin-right: 8px;
 }
 </style>
