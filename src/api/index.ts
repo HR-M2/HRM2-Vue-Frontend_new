@@ -686,9 +686,7 @@ export const interviewAssistApi = {
   // 创建面试会话
   createSession: async (data: {
     resume_data_id: string
-    interviewer_name?: string
     job_config?: Record<string, unknown>
-    company_config?: Record<string, unknown>
   }): Promise<InterviewSession> => {
     const response = await fetch(`${API_BASE}/interview-assist/sessions/`, {
       method: 'POST',
@@ -750,19 +748,14 @@ export const interviewAssistApi = {
   recordQA: async (sessionId: string, data: {
     question: {
       content: string
-      source?: string
-      category?: string
       expected_skills?: string[]
       difficulty?: number
-      interest_point?: string
     }
     answer: {
       content: string
-      duration_seconds?: number
     }
   }): Promise<{
     round_number: number
-    qa_record_id: string
     evaluation: AnswerEvaluation
     followup_recommendation: {
       should_followup: boolean
@@ -807,17 +800,14 @@ export const interviewAssistApi = {
   }
 }
 
-// 面试辅助类型定义
+// 面试辅助类型定义（精简版）
 export interface InterviewSession {
   session_id: string
   candidate_name: string
   position_title: string
-  interviewer_name?: string
-  status: 'active' | 'completed'
   current_round: number
   qa_count?: number
-  question_pool_count?: number
-  resume_highlights?: string[]
+  is_completed: boolean
   created_at: string
   updated_at?: string
   resume_summary?: {
