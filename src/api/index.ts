@@ -746,7 +746,7 @@ export const interviewAssistApi = {
     return result.data
   },
 
-  // 记录问答并获取评估
+  // 记录问答并生成候选提问
   recordQA: async (sessionId: string, data: {
     question: {
       content: string
@@ -756,15 +756,13 @@ export const interviewAssistApi = {
     answer: {
       content: string
     }
+    skip_evaluation?: boolean  // 默认 true，跳过评估
+    followup_count?: number  // 追问问题数量
+    alternative_count?: number  // 候选问题数量
   }): Promise<{
     round_number: number
-    evaluation: AnswerEvaluation
-    followup_recommendation: {
-      should_followup: boolean
-      reason: string
-      suggested_followups: FollowupSuggestion[]
-      hr_hint?: string
-    }
+    evaluation: AnswerEvaluation | null  // 可能为 null
+    candidate_questions: CandidateQuestion[]  // LLM生成的候选问题
     hr_action_hints: string[]
   }> => {
     const response = await fetch(`${API_BASE}/interview-assist/sessions/${sessionId}/record-qa/`, {
@@ -851,6 +849,14 @@ export interface FollowupSuggestion {
   question: string
   purpose: string
   difficulty: number
+}
+
+// 新增：LLM生成的候选问题
+export interface CandidateQuestion {
+  question: string
+  purpose: string
+  expected_skills: string[]
+  source: 'followup' | 'resume' | 'job'
 }
 
 export interface InterviewReport {

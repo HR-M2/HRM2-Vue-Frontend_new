@@ -22,19 +22,7 @@
               <span class="timestamp">{{ formatTime(message.timestamp) }}</span>
             </div>
             <div class="message-content">{{ message.content }}</div>
-            <!-- 评估结果 -->
-            <transition name="fade">
-              <div v-if="message.evaluation" class="evaluation-badge">
-                <div class="eval-score" :class="getScoreClass(message.evaluation.score)">
-                  <span class="score-value">{{ Math.round(message.evaluation.score) }}</span>
-                  <span class="score-label">分</span>
-                </div>
-                <div class="eval-info">
-                  <span class="recommendation">{{ getRecommendationText(message.evaluation.recommendation) }}</span>
-                  <span class="feedback">{{ message.evaluation.feedback }}</span>
-                </div>
-              </div>
-            </transition>
+            <!-- 评估结果（已移除实时评估，改为面试结束后统一评估） -->
           </div>
         </div>
       </transition-group>

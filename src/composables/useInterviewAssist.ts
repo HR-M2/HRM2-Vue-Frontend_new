@@ -9,7 +9,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { interviewAssistApi } from '@/api'
-import type { AnswerEvaluation, InterviewQuestion, FollowupSuggestion } from '@/api'
+import type { AnswerEvaluation, InterviewQuestion, FollowupSuggestion, CandidateQuestion } from '@/api'
 
 // 类型定义
 export interface Message {
@@ -408,16 +408,16 @@ export function useInterviewAssist() {
     }
   }
 
-  // 评估回答（调用后端 API - 真人面试模式使用）
-  const evaluateAnswerApi = async (
+  // 记录问答并获取候选提问（调用后端 API - 真人面试模式使用）
+  const recordQAAndGetSuggestions = async (
     question: string, 
     answer: string,
     questionData?: Partial<InterviewQuestion>
-  ): Promise<{ evaluation: MessageEvaluation; suggestions: SuggestedQuestion[]; hrHints: string[] }> => {
+  ): Promise<{ evaluation: MessageEvaluation | null; suggestions: SuggestedQuestion[]; hrHints: string[] }> => {
     if (!sessionId.value) {
-      // 没有会话，使用本地评估
+      // 没有会话，使用本地模拟
       return {
-        evaluation: evaluateAnswerLocal(answer),
+        evaluation: null,
         suggestions: generateSuggestions(question, answer),
         hrHints: []
       }
@@ -432,48 +432,44 @@ export function useInterviewAssist() {
         },
         answer: {
           content: answer
-        }
+        },
+        skip_evaluation: true,  // 跳过评估，提高效率
+        followup_count: config.followupCount,  // 追问问题数量
+        alternative_count: config.alternativeCount  // 候选问题数量
       })
 
-      // 转换后端评估结果为前端格式
-      const backendEval = result.evaluation
-      const score = backendEval.normalized_score
-      let recommendation: MessageEvaluation['recommendation'] = 'average'
-      if (score >= 80) recommendation = 'excellent'
-      else if (score >= 65) recommendation = 'good'
-      else if (score < 45) recommendation = 'needsImprovement'
+      // 转换后端评估结果为前端格式（如果有的话）
+      let evaluation: MessageEvaluation | null = null
+      if (result.evaluation) {
+        const backendEval = result.evaluation
+        const score = backendEval.normalized_score
+        let recommendation: MessageEvaluation['recommendation'] = 'average'
+        if (score >= 80) recommendation = 'excellent'
+        else if (score >= 65) recommendation = 'good'
+        else if (score < 45) recommendation = 'needsImprovement'
 
-      const evaluation: MessageEvaluation = {
-        score,
-        recommendation,
-        feedback: backendEval.feedback,
-        confidenceLevel: backendEval.confidence_level
+        evaluation = {
+          score,
+          recommendation,
+          feedback: backendEval.feedback,
+          confidenceLevel: backendEval.confidence_level
+        }
       }
 
-      // 转换追问建议（根据配置的数量）
+      // 转换后端返回的候选问题为前端格式
       const suggestions: SuggestedQuestion[] = []
-      const followups = result.followup_recommendation.suggested_followups || []
-      followups.slice(0, config.followupCount).forEach((f: FollowupSuggestion, i: number) => {
+      const candidateQuestions = result.candidate_questions || []
+      candidateQuestions.forEach((q: CandidateQuestion, i: number) => {
+        // 根据 source 字段决定问题类型：followup 显示为追问，其他显示为候选问题
+        const questionType = q.source === 'followup' ? 'followup' : 'alternative'
         suggestions.push({
           id: generateId(),
-          question: f.question,
-          type: 'followup',
+          question: q.question,
+          type: questionType,
+          angle: q.purpose,  // 使用 purpose 作为角度描述
           priority: i + 1
         })
       })
-
-      // 生成候选问题（本地生成，根据配置的数量）
-      const alternativeAngles = ['反向思考', '实际案例', '团队协作', '技术深度', '问题解决'] as const
-      for (let i = 0; i < config.alternativeCount; i++) {
-        const angle = alternativeAngles[i % alternativeAngles.length]!
-        suggestions.push({
-          id: generateId(),
-          question: generateAlternativeQuestion(question, answer, angle),
-          type: 'alternative',
-          angle,
-          priority: config.followupCount + i + 1
-        })
-      }
 
       return {
         evaluation,
@@ -481,14 +477,17 @@ export function useInterviewAssist() {
         hrHints: result.hr_action_hints || []
       }
     } catch (error) {
-      console.error('后端评估失败，使用本地评估:', error)
+      console.error('后端调用失败，使用本地生成:', error)
       return {
-        evaluation: evaluateAnswerLocal(answer),
+        evaluation: null,
         suggestions: generateSuggestions(question, answer),
         hrHints: []
       }
     }
   }
+
+  // 保留旧函数别名，保持向后兼容
+  const evaluateAnswerApi = recordQAAndGetSuggestions
 
   // 统一的评估入口
   const evaluateAnswer = (answer: string): MessageEvaluation => {
@@ -802,19 +801,19 @@ export function useInterviewAssist() {
     
     const message = addMessage('candidate', answer)
     
-    // 根据模式选择评估方式
+    // 根据模式选择处理方式
     if (useBackendApi.value && sessionId.value) {
-      // 使用后端 API 评估（真人面试模式）
+      // 使用后端 API 生成候选问题（真人面试模式）
       isLoadingQuestions.value = true  // 显示加载状态
       try {
-        const result = await evaluateAnswerApi(
+        const result = await recordQAAndGetSuggestions(
           currentQuestion.value, 
           answer,
           currentQuestionData.value || undefined
         )
-        message.evaluation = result.evaluation
+        // 不再设置评估结果，只显示候选问题
         
-        // 使用后端返回的追问建议
+        // 使用后端返回的候选问题
         if (result.suggestions.length > 0) {
           suggestedQuestions.value = result.suggestions
           showSuggestions.value = true
@@ -823,24 +822,19 @@ export function useInterviewAssist() {
           showSuggestionsImmediately(currentQuestion.value, answer)
         }
       } catch (error) {
-        console.error('API评估失败:', error)
-        message.evaluation = evaluateAnswerLocal(answer)
+        console.error('API调用失败:', error)
         showSuggestionsImmediately(currentQuestion.value, answer)
       } finally {
         isLoadingQuestions.value = false  // 隐藏加载状态
       }
     } else {
-      // 使用本地评估（AI模拟模式）
+      // 使用本地生成（AI模拟模式）
       await new Promise(resolve => setTimeout(resolve, 500))
-      message.evaluation = evaluateAnswerLocal(answer)
       showSuggestionsImmediately(currentQuestion.value, answer)
     }
     
-    // 更新统计
-    const scores = messages.value
-      .filter(m => m.evaluation)
-      .map(m => m.evaluation!.score)
-    stats.averageScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
+    // 更新统计（移除评分统计）
+    stats.totalQuestions++
     
     currentAnswer.value = ''
     currentQuestionData.value = null
