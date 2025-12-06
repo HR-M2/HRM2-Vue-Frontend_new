@@ -27,7 +27,17 @@
     
     <!-- 问题列表 -->
     <transition name="fade" mode="out-in">
-      <div v-if="visible || unaskedInterestPoints.length" class="suggestions-content">
+      <div v-if="loading || waitingForAnswer" class="loading-state" key="loading">
+        <div class="loading-icon">
+          <el-icon class="is-loading"><Promotion /></el-icon>
+        </div>
+        <h4>{{ waitingForAnswer ? '等待候选人回复...' : '正在生成问题...' }}</h4>
+        <p>{{ waitingForAnswer ? '面试官已提问，请等待候选人回答' : 'AI 正在分析回答并生成追问建议，请稍候' }}</p>
+        <div class="loading-progress">
+          <div class="progress-bar"></div>
+        </div>
+      </div>
+      <div v-else-if="visible || unaskedInterestPoints.length" class="suggestions-content" key="content">
         <!-- 简历兴趣点 -->
         <div class="suggestion-group" v-if="unaskedInterestPoints.length">
           <div class="group-header">
@@ -124,18 +134,6 @@
         </div>
       </div>
       
-      <!-- 加载状态 -->
-      <div v-else-if="loading" class="loading-state">
-        <div class="loading-icon">
-          <el-icon class="is-loading"><Promotion /></el-icon>
-        </div>
-        <h4>正在生成问题...</h4>
-        <p>AI 正在分析简历并生成面试问题，请稍候</p>
-        <div class="loading-progress">
-          <div class="progress-bar"></div>
-        </div>
-      </div>
-      
       <!-- 空状态 -->
       <div v-else class="empty-state">
         <div class="empty-icon">
@@ -166,6 +164,7 @@ const props = defineProps<{
   suggestions: SuggestedQuestion[]
   visible: boolean
   loading?: boolean
+  waitingForAnswer?: boolean
   followupCount: number
   alternativeCount: number
   interestPoints?: ResumeInterestPoint[]

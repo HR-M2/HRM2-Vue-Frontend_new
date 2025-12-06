@@ -348,6 +348,7 @@
             :suggestions="suggestedQuestions"
             :visible="showSuggestions"
             :loading="isLoadingQuestions"
+            :waiting-for-answer="isWaitingForAnswer"
             :followup-count="localConfig.followupCount"
             :alternative-count="localConfig.alternativeCount"
             :interest-points="interestPoints"
@@ -389,6 +390,7 @@ const props = defineProps<{
   suggestedQuestions: SuggestedQuestion[]
   showSuggestions: boolean
   isLoadingQuestions?: boolean
+  isWaitingForAnswer?: boolean
   config: InterviewConfig
   interestPoints: ResumeInterestPoint[]
   stats: {

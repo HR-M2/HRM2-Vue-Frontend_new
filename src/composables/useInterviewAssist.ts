@@ -208,6 +208,7 @@ export function useInterviewAssist() {
   const suggestedQuestions = ref<SuggestedQuestion[]>([])
   const showSuggestions = ref(false)
   const isLoadingQuestions = ref(false)  // 问题加载状态
+  const isWaitingForAnswer = ref(false)  // 等待候选人回答状态
   
   // 简历兴趣点状态
   const interestPoints = ref<ResumeInterestPoint[]>([])
@@ -761,6 +762,11 @@ export function useInterviewAssist() {
     
     await simulateTyping(question, 'interviewer')
     
+    // 真人面试模式：设置等待候选人回答状态
+    if (config.mode === 'live-interview') {
+      isWaitingForAnswer.value = true
+    }
+    
     // AI 模拟模式：自动生成候选人回答
     if (config.mode === 'ai-simulation' && selectedCandidate.value) {
       isAITyping.value = true
@@ -792,6 +798,7 @@ export function useInterviewAssist() {
     if (!isInterviewActive.value || isPaused.value || !answer.trim()) return
     
     isProcessing.value = true
+    isWaitingForAnswer.value = false  // 候选人已回答，关闭等待状态
     
     const message = addMessage('candidate', answer)
     
@@ -908,6 +915,7 @@ export function useInterviewAssist() {
     suggestedQuestions,
     showSuggestions,
     isLoadingQuestions,
+    isWaitingForAnswer,
     
     // 简历兴趣点
     interestPoints,

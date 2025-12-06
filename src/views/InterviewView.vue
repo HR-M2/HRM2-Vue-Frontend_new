@@ -82,6 +82,7 @@
           :suggested-questions="suggestedQuestions"
           :show-suggestions="showSuggestions"
           :is-loading-questions="isLoadingQuestions"
+          :is-waiting-for-answer="isWaitingForAnswer"
           :config="config"
           :interest-points="interestPoints"
           :stats="stats"
@@ -155,6 +156,7 @@ const {
   suggestedQuestions,
   showSuggestions,
   isLoadingQuestions,
+  isWaitingForAnswer,
   interestPoints,
   askInterestPointQuestion,
   stats,
