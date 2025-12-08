@@ -594,7 +594,14 @@ const handleEditInterestPoint = (point: ResumeInterestPoint, event: Event) => {
     .el-icon {
       font-size: 40px;
       color: #667eea;
+    }
+    
+    .el-icon.is-loading {
       animation: spin 1.5s linear infinite;
+    }
+    
+    &.waiting .el-icon {
+      animation: none;
     }
   }
   

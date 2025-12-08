@@ -183,9 +183,13 @@ export function useInterviewAssist() {
     interestPointCount: 2 // 默认2个兴趣点
   })
 
-  // 会话状态（后端集成）
-  const sessionId = ref<string | null>(null)
-  const resumeDataId = ref<string | null>(null)
+  // 会话状态（后端集成）- 使用 localStorage 持久化
+  const STORAGE_KEY = 'interview_session'
+  const savedSession = localStorage.getItem(STORAGE_KEY)
+  const parsedSession = savedSession ? JSON.parse(savedSession) : null
+  
+  const sessionId = ref<string | null>(parsedSession?.sessionId || null)
+  const resumeDataId = ref<string | null>(parsedSession?.resumeDataId || null)
   const questionPool = ref<InterviewQuestion[]>([])
   const resumeHighlights = ref<string[]>([])
   const useBackendApi = ref(true) // 是否使用后端 API
@@ -520,6 +524,23 @@ export function useInterviewAssist() {
     return template.replace(/{skill}/g, skill)
   }
 
+  // 保存会话到 localStorage
+  const saveSession = () => {
+    if (sessionId.value) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        sessionId: sessionId.value,
+        resumeDataId: resumeDataId.value,
+        isActive: isInterviewActive.value,
+        useBackendApi: useBackendApi.value
+      }))
+    }
+  }
+  
+  // 清除 localStorage 中的会话
+  const clearSession = () => {
+    localStorage.removeItem(STORAGE_KEY)
+  }
+
   // 创建后端会话
   const createSession = async (resumeId: string): Promise<boolean> => {
     try {
@@ -528,6 +549,7 @@ export function useInterviewAssist() {
       })
       sessionId.value = session.session_id
       resumeDataId.value = resumeId
+      saveSession()  // 持久化保存
       return true
     } catch (error) {
       console.error('创建会话失败:', error)
@@ -720,6 +742,7 @@ export function useInterviewAssist() {
     messages.value = []
     suggestedQuestions.value = []
     showSuggestions.value = false
+    clearSession()  // 清除 localStorage
     
     ElMessage.warning('面试已放弃')
   }
@@ -733,21 +756,30 @@ export function useInterviewAssist() {
     
     addMessage('system', `面试已结束。共进行了 ${stats.totalQuestions} 个问题，${stats.totalFollowups} 次追问，用时 ${stats.duration} 分钟。`)
     
+    // 调试日志
+    console.log('[endAndSaveInterview] sessionId:', sessionId.value)
+    console.log('[endAndSaveInterview] useBackendApi:', useBackendApi.value)
+    
     // 生成报告
     if (sessionId.value && useBackendApi.value) {
       ElMessage.info('正在生成面试报告...')
       const result = await generateReport()
+      console.log('[endAndSaveInterview] generateReport result:', result)
       if (result.success) {
         ElMessage.success('面试报告已生成')
       } else {
         ElMessage.warning('面试已结束，但报告生成失败')
       }
-      
-      // 结束会话
-      try {
-        await interviewAssistApi.endSession(sessionId.value)
-      } catch (error) {
-        console.error('结束会话失败:', error)
+      // 注意：不再调用 endSession，因为 DELETE 会删除整个会话（包括报告）
+      // 报告已保存在数据库中，会话保留用于后续查看
+    } else {
+      // 无法生成报告的原因提示
+      if (!sessionId.value) {
+        console.warn('[endAndSaveInterview] 无法生成报告：未选择候选人或会话创建失败')
+        ElMessage.warning('未选择候选人，无法生成面试报告')
+      } else if (!useBackendApi.value) {
+        console.warn('[endAndSaveInterview] 无法生成报告：当前为AI模拟模式')
+        ElMessage.info('AI模拟模式不生成报告')
       }
     }
 
@@ -757,6 +789,7 @@ export function useInterviewAssist() {
     // 清理会话状态
     sessionId.value = null
     questionPool.value = []
+    clearSession()  // 清除 localStorage
     
     ElMessage.success('面试已结束并保存')
   }

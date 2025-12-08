@@ -503,7 +503,56 @@ export const recommendApi = {
       throw new Error(`下载报告失败: ${response.status}`)
     }
     return response.blob()
+  },
+
+  // 单人综合分析
+  analyzeCandidate: async (resumeId: string): Promise<ComprehensiveAnalysisResult> => {
+    const response = await fetch(`${API_BASE}/final-recommend/comprehensive-analysis/${resumeId}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.message || `综合分析失败: ${response.status}`)
+    }
+    const result = await response.json()
+    return result.data
+  },
+
+  // 获取候选人的综合分析历史
+  getCandidateAnalysis: async (resumeId: string): Promise<ComprehensiveAnalysisResult | null> => {
+    const response = await fetch(`${API_BASE}/final-recommend/comprehensive-analysis/${resumeId}/`)
+    if (!response.ok) {
+      throw new Error(`获取分析结果失败: ${response.status}`)
+    }
+    const result = await response.json()
+    return result.data || null
   }
+}
+
+// 综合分析结果类型
+export interface ComprehensiveAnalysisResult {
+  id?: string
+  resume_id: string
+  candidate_name: string
+  final_score: number
+  recommendation: {
+    level: string
+    label: string
+    action: string
+    score: number
+  }
+  dimension_scores: Record<string, {
+    dimension_score: number
+    dimension_name: string
+    weight: number
+    strengths: string[]
+    weaknesses: string[]
+    analysis: string
+    sub_scores: Record<string, number>
+  }>
+  comprehensive_report: string
+  created_at?: string
 }
 
 /**
@@ -797,6 +846,30 @@ export const interviewAssistApi = {
     }
     const result = await response.json()
     return result.data
+  },
+
+  // 根据简历ID获取面试会话列表
+  getSessionsByResumeId: async (resumeId: string): Promise<Array<{
+    id: string
+    resume_data_id: string
+    qa_records: Array<{ question: string; answer: string }>
+    final_report?: {
+      overall_assessment?: {
+        recommendation_score: number
+        recommendation: string
+        summary: string
+      }
+      highlights?: string[]
+      red_flags?: string[]
+    }
+    created_at: string
+  }>> => {
+    const response = await fetch(`${API_BASE}/interview-assist/sessions/?resume_id=${resumeId}`)
+    if (!response.ok) {
+      throw new Error(`获取会话列表失败: ${response.status}`)
+    }
+    const result = await response.json()
+    return result.data || []
   }
 }
 
