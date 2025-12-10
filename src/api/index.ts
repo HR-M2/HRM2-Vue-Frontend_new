@@ -12,8 +12,29 @@ import type {
   ApiResponse
 } from '@/types'
 
-// API 基础路径
-const API_BASE = import.meta.env.VITE_API_BASE ?? ''
+// API 基础路径：优先从 localStorage 读取用户设置
+const getApiBase = (): string => {
+  try {
+    const savedSettings = localStorage.getItem('apiSettings')
+    if (savedSettings) {
+      const settings = JSON.parse(savedSettings)
+      if (settings.baseUrl) return settings.baseUrl
+    }
+  } catch {}
+  return import.meta.env.VITE_API_BASE ?? ''
+}
+
+let API_BASE = getApiBase()
+
+// 监听 storage 变化，动态更新 API_BASE
+window.addEventListener('storage', () => {
+  API_BASE = getApiBase()
+})
+
+// 导出更新函数供设置页面调用
+export const updateApiBase = () => {
+  API_BASE = getApiBase()
+}
 
 // 创建 axios 实例
 const apiClient = axios.create({

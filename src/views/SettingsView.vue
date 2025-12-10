@@ -122,6 +122,7 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { updateApiBase } from '@/api'
 
 // API 设置
 const apiSettings = reactive({
@@ -140,13 +141,14 @@ const systemSettings = reactive({
 // 保存 API 配置
 const saveApiSettings = () => {
   localStorage.setItem('apiSettings', JSON.stringify(apiSettings))
-  ElMessage.success('API 配置已保存')
+  updateApiBase() // 立即更新 API 基础地址
+  ElMessage.success('API 配置已保存（已生效）')
 }
 
 // 测试连接
 const testConnection = async () => {
   try {
-    const response = await fetch(`${apiSettings.baseUrl}/api/v1/positions/criteria/`, {
+    const response = await fetch(`${apiSettings.baseUrl}/position-settings/`, {
       method: 'GET',
       signal: AbortSignal.timeout(5000)
     })
