@@ -9,7 +9,7 @@
     <!-- 中间：结束按钮组 -->
     <div class="control-group end-group">
       <el-popconfirm
-        title="确定要放弃本次面试吗？"
+        title="确定要放弃本次面试吗？所有记录将被丢弃。"
         confirm-button-text="确定放弃"
         cancel-button-text="取消"
         confirm-button-type="danger"
@@ -21,6 +21,10 @@
           <el-button type="info" plain :icon="Close">放弃面试</el-button>
         </template>
       </el-popconfirm>
+      
+      <el-button type="warning" :icon="FolderChecked" @click="$emit('endSaveOnly')">
+        结束只保存
+      </el-button>
       
       <el-button type="danger" :icon="Finished" @click="$emit('endAndSave')">
         结束并生成报告
@@ -35,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { VideoPlay, VideoPause, Close, Download, Finished, WarningFilled } from '@element-plus/icons-vue'
+import { VideoPlay, VideoPause, Close, Download, Finished, WarningFilled, FolderChecked } from '@element-plus/icons-vue'
 
 defineProps<{
   isPaused: boolean
@@ -44,8 +48,9 @@ defineProps<{
 defineEmits<{
   pause: []
   resume: []
-  quit: []       // 放弃面试（不保存）
-  endAndSave: [] // 结束并保存（生成报告）
+  quit: []        // 放弃面试（不保存）
+  endSaveOnly: [] // 结束并保存（不生成报告）
+  endAndSave: []  // 结束并生成报告
   export: []
 }>()
 </script>
@@ -64,7 +69,8 @@ defineEmits<{
     gap: 10px;
     
     &.end-group {
-      // 结束按钮组居中
+      flex: 1;
+      justify-content: center;
     }
   }
 }

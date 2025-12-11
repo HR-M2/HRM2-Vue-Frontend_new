@@ -91,6 +91,7 @@
               :is-analyzing="isAnalyzingResume(resume.id)"
               :analysis-progress="getAnalysisProgress(resume.id)"
               :analysis-status-text="getAnalysisStatusText(resume.id)"
+              :is-generating-report="isGeneratingReportForResume(resume.id)"
               @view-resume="viewResumeDetail(resume)"
               @view-screening-report="viewScreeningReport(resume)"
               @view-interview-records="viewInterviewRecords(resume)"
@@ -99,6 +100,7 @@
               @go-to-screening="goToScreening"
               @go-to-interview="goToInterview(resume)"
               @start-analysis="startCandidateAnalysis(resume)"
+              @generate-interview-report="generateInterviewReportForResume(resume)"
             />
           </div>
         </div>
@@ -418,6 +420,7 @@ const finalRecommendations = ref<Record<string, FinalRecommendation>>({})
 const analyzingResumes = ref<Set<string>>(new Set())
 const analysisProgress = ref<Record<string, number>>({})
 const analysisStatusTexts = ref<Record<string, string>>({})
+const generatingReportResumes = ref<Set<string>>(new Set())
 
 // 加载所有简历的面试会话和历史分析结果
 const loadAllInterviewSessions = async () => {
@@ -473,6 +476,47 @@ const getAnalysisProgress = (resumeId: string) => {
 // 获取分析状态文本
 const getAnalysisStatusText = (resumeId: string) => {
   return analysisStatusTexts.value[resumeId] || ''
+}
+
+// 是否正在生成面试报告
+const isGeneratingReportForResume = (resumeId: string) => {
+  return generatingReportResumes.value.has(resumeId)
+}
+
+// 为指定简历生成面试分析报告
+const generateInterviewReportForResume = async (resume: ResumeData) => {
+  if (!resume.id) return
+  
+  const session = interviewSessions.value[resume.id]
+  if (!session) {
+    ElMessage.warning('未找到面试会话')
+    return
+  }
+  
+  generatingReportResumes.value.add(resume.id)
+  
+  try {
+    ElMessage.info('正在生成面试分析报告...')
+    
+    // 调用后端 API 生成报告
+    const result = await interviewAssistApi.generateReport(session.id, {
+      include_conversation_log: true
+    })
+    
+    // 更新会话中的报告数据
+    if (result.report) {
+      session.final_report = result.report
+      interviewSessions.value[resume.id] = { ...session }
+    }
+    
+    ElMessage.success('面试分析报告已生成')
+    
+  } catch (err: any) {
+    console.error('生成面试报告失败:', err)
+    ElMessage.error(err.message || '生成面试报告失败')
+  } finally {
+    generatingReportResumes.value.delete(resume.id)
+  }
 }
 
 // ========== 综合分析 ==========

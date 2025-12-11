@@ -90,6 +90,7 @@
           @pause="pauseInterview"
           @resume="resumeInterview"
           @quit="quitInterview"
+          @end-save-only="endAndSaveOnly"
           @end-and-save="endAndSaveInterview"
           @export="exportRecord"
           @ask="askQuestion"
@@ -168,6 +169,7 @@ const {
   resumeInterview,
   quitInterview,
   endAndSaveInterview,
+  endAndSaveOnly,
   endInterview,
   askQuestion,
   submitAnswer,

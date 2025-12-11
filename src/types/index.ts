@@ -165,21 +165,10 @@ export interface VideoAnalysis {
 
 /**
  * 最终推荐模块
+ * 
+ * 注意: InterviewEvaluationTask 类型已废弃并移除（批量评估功能已废弃）
+ * 请使用 ComprehensiveAnalysisResult (定义在 api/index.ts) 进行单人综合分析
  */
-export type EvaluationStatus = 'pending' | 'processing' | 'completed' | 'failed'
-
-export interface InterviewEvaluationTask {
-  task_id: string
-  group_id: string
-  status: EvaluationStatus
-  progress?: number
-  current_speaker?: string
-  result_file?: string
-  result_summary?: string
-  error_message?: string
-  created_at: string
-  updated_at?: string
-}
 
 /**
  * 简历文件类型

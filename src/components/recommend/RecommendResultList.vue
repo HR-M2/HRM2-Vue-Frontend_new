@@ -6,65 +6,6 @@
       </div>
     </template>
 
-    <!-- 综合分析操作区 -->
-    <div v-if="positionId" class="analysis-section">
-      <div class="analysis-actions">
-        <el-button
-          type="primary"
-          :loading="isLoading"
-          :disabled="isRunning"
-          @click="$emit('startAnalysis')"
-        >
-          {{ isRunning ? '分析进行中...' : '开始综合分析' }}
-        </el-button>
-        <el-button
-          v-if="isRunning && analysisTask"
-          type="danger"
-          @click="$emit('stopAnalysis')"
-        >
-          停止分析
-        </el-button>
-      </div>
-
-      <!-- 分析进度 -->
-      <div v-if="analysisTask" class="analysis-progress">
-        <el-progress
-          :percentage="progress"
-          :status="progressStatus"
-          :text-inside="true"
-          :stroke-width="20"
-        />
-        <div class="progress-info">
-          <p><strong>状态:</strong> {{ getStatusText(analysisTask.status) }}</p>
-          <p v-if="analysisTask.current_speaker">
-            <strong>当前处理:</strong> {{ analysisTask.current_speaker }}
-          </p>
-          <p><strong>任务ID:</strong> {{ analysisTask.task_id }}</p>
-        </div>
-
-        <!-- 完成后下载报告 -->
-        <div v-if="analysisTask.status === 'completed' && analysisTask.result_file" class="analysis-result">
-          <el-button type="success" @click="$emit('downloadReport', analysisTask.result_file)">
-            下载评估报告
-          </el-button>
-          <div v-if="analysisTask.result_summary" class="result-summary">
-            <h4>评估摘要:</h4>
-            <div v-html="renderMarkdown(analysisTask.result_summary)"></div>
-          </div>
-        </div>
-
-        <!-- 失败信息 -->
-        <el-alert
-          v-if="analysisTask.status === 'failed'"
-          title="分析失败"
-          :description="analysisTask.error_message || '未知错误'"
-          type="error"
-          show-icon
-          class="error-alert"
-        />
-      </div>
-    </div>
-
     <!-- 空状态 -->
     <div v-if="!positionId" class="empty-state">
       <el-empty description="请选择岗位以查看推荐结果" :image-size="100" />
@@ -149,22 +90,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { marked } from 'marked'
-import type { ResumeData, InterviewEvaluationTask } from '@/types'
+import type { ResumeData } from '@/types'
 
+// 注意: 批量评估功能（analysisTask, isLoading, isRunning, progress 等）已废弃
+// 请使用单人综合分析功能（recommendApi.analyzeCandidate）
 const props = defineProps<{
   positionId: string | null
   resumes: ResumeData[]
-  analysisTask: InterviewEvaluationTask | null
-  isLoading: boolean
-  isRunning: boolean
-  progress: number
-  progressStatus: string
 }>()
 
 defineEmits<{
-  startAnalysis: []
-  stopAnalysis: []
-  downloadReport: [filePath: string]
   viewReport: [resume: ResumeData]
   viewVideo: [resume: ResumeData]
 }>()
@@ -181,17 +116,6 @@ const sortedResumes = computed(() => {
 // 获取综合评分
 const getComprehensiveScore = (resume: ResumeData) => {
   return resume.scores?.comprehensive_score || resume.screening_score?.comprehensive_score
-}
-
-// 获取状态文本
-const getStatusText = (status: string) => {
-  const texts: Record<string, string> = {
-    pending: '等待中',
-    processing: '分析中',
-    completed: '已完成',
-    failed: '失败'
-  }
-  return texts[status] || status
 }
 
 // 视频分析状态
@@ -268,52 +192,6 @@ const renderMarkdown = (text: string) => marked(text)
   font-size: 16px;
   font-weight: 600;
   color: #303133;
-}
-
-// 分析区域
-.analysis-section {
-  padding: 16px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.analysis-actions {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.analysis-progress {
-  .progress-info {
-    margin-top: 12px;
-
-    p {
-      margin: 4px 0;
-      font-size: 13px;
-      color: #606266;
-    }
-  }
-}
-
-.analysis-result {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e4e7ed;
-
-  .result-summary {
-    margin-top: 12px;
-
-    h4 {
-      margin: 0 0 8px 0;
-      font-size: 14px;
-      color: #303133;
-    }
-  }
-}
-
-.error-alert {
-  margin-top: 16px;
 }
 
 // 空状态

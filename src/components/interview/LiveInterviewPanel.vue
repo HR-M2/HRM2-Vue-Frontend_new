@@ -55,6 +55,7 @@
         @pause="$emit('pause')"
         @resume="$emit('resume')"
         @quit="$emit('quit')"
+        @end-save-only="$emit('endSaveOnly')"
         @end-and-save="$emit('endAndSave')"
         @export="$emit('export')"
       />
@@ -96,8 +97,9 @@ const emit = defineEmits<{
   start: []
   pause: []
   resume: []
-  quit: []        // 放弃面试（不保存）
-  endAndSave: []  // 结束并保存（生成报告）
+  quit: []         // 放弃面试（不保存）
+  endSaveOnly: []  // 结束只保存（不生成报告）
+  endAndSave: []   // 结束并生成报告
   export: []
   ask: [question: string]
   submit: [answer: string]

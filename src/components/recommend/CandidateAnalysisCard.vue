@@ -108,11 +108,20 @@
             <div class="item-info">
               <span class="item-name">面试分析报告</span>
               <span class="item-status">
-                {{ hasInterviewReport ? getInterviewRecommendation() : '未生成' }}
+                {{ hasInterviewReport ? getInterviewRecommendation() : (hasInterviewRecords ? '有问答记录，可生成' : '未生成') }}
               </span>
             </div>
             <el-button v-if="hasInterviewReport" size="small" text type="primary" @click.stop="$emit('viewInterviewReport')">
               查看
+            </el-button>
+            <el-button 
+              v-else-if="hasInterviewRecords" 
+              size="small" 
+              type="primary"
+              :loading="isGeneratingReport"
+              @click.stop="$emit('generateInterviewReport')"
+            >
+              生成报告
             </el-button>
           </div>
           
@@ -233,6 +242,7 @@ const props = defineProps<{
   isAnalyzing?: boolean
   analysisProgress?: number
   analysisStatusText?: string
+  isGeneratingReport?: boolean
 }>()
 
 defineEmits<{
@@ -244,6 +254,7 @@ defineEmits<{
   goToScreening: []
   goToInterview: []
   startAnalysis: []
+  generateInterviewReport: []
 }>()
 
 const isExpanded = ref(false)

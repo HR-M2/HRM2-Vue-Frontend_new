@@ -8,7 +8,6 @@ import type {
   ResumeGroup,
   ResumeData,
   VideoAnalysis,
-  InterviewEvaluationTask,
   ApiResponse
 } from '@/types'
 
@@ -470,62 +469,17 @@ export const videoApi = {
 /**
  * 最终推荐 API
  * 后端路径: /final-recommend/
+ * 
+ * 注意: 批量评估功能已废弃，以下方法已移除:
+ * - createEvaluation
+ * - getEvaluationStatus
+ * - getEvaluationByGroup
+ * - stopEvaluation
+ * - downloadReport (批量评估报告)
+ * 
+ * 请使用 analyzeCandidate 和 getCandidateAnalysis 进行单人综合分析。
  */
 export const recommendApi = {
-  // 创建评估任务
-  createEvaluation: async (groupId: string): Promise<InterviewEvaluationTask> => {
-    const response = await fetch(`${API_BASE}/final-recommend/interview-evaluation/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ group_id: groupId })
-    })
-    if (!response.ok) {
-      throw new Error(`创建评估任务失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || result
-  },
-
-  // 获取评估任务状态
-  getEvaluationStatus: async (taskId: string): Promise<InterviewEvaluationTask> => {
-    const response = await fetch(`${API_BASE}/final-recommend/interview-evaluation/${taskId}/`)
-    if (!response.ok) {
-      throw new Error(`获取评估状态失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || result
-  },
-
-  // 获取评估任务状态（根据组ID）
-  getEvaluationByGroup: async (groupId: string): Promise<InterviewEvaluationTask | null> => {
-    const response = await fetch(`${API_BASE}/final-recommend/interview-evaluation/?group_id=${groupId}`)
-    if (!response.ok) {
-      throw new Error(`获取评估状态失败: ${response.status}`)
-    }
-    const result = await response.json()
-    // 后端返回 { status: 'success', data: {...} | null }
-    return result.data || null
-  },
-
-  // 停止评估任务
-  stopEvaluation: async (taskId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/final-recommend/interview-evaluation/${taskId}/delete/`, {
-      method: 'DELETE'
-    })
-    if (!response.ok) {
-      throw new Error(`停止评估任务失败: ${response.status}`)
-    }
-  },
-
-  // 下载报告
-  downloadReport: async (filePath: string): Promise<Blob> => {
-    const response = await fetch(`${API_BASE}/final-recommend/download-report/${filePath}`)
-    if (!response.ok) {
-      throw new Error(`下载报告失败: ${response.status}`)
-    }
-    return response.blob()
-  },
-
   // 单人综合分析
   analyzeCandidate: async (resumeId: string): Promise<ComprehensiveAnalysisResult> => {
     const response = await fetch(`${API_BASE}/final-recommend/comprehensive-analysis/${resumeId}/`, {

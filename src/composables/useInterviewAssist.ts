@@ -797,6 +797,30 @@ export function useInterviewAssist() {
   // 兼容旧代码：endInterview 映射到 endAndSaveInterview
   const endInterview = endAndSaveInterview
 
+  // 结束面试并保存（不生成报告）
+  const endAndSaveOnly = async () => {
+    // 计算持续时间
+    if (stats.startTime) {
+      stats.duration = Math.round((Date.now() - stats.startTime.getTime()) / 1000 / 60)
+    }
+    
+    addMessage('system', `面试已结束。共进行了 ${stats.totalQuestions} 个问题，${stats.totalFollowups} 次追问，用时 ${stats.duration} 分钟。`)
+    
+    // 不生成报告，只保存问答记录（记录已通过 record-qa 接口实时保存到后端）
+    console.log('[endAndSaveOnly] 结束面试，不生成报告')
+    console.log('[endAndSaveOnly] sessionId:', sessionId.value)
+
+    isInterviewActive.value = false
+    isPaused.value = false
+    
+    // 清理会话状态
+    sessionId.value = null
+    questionPool.value = []
+    clearSession()  // 清除 localStorage
+    
+    ElMessage.success('面试已结束并保存（未生成报告）')
+  }
+
   // 生成最终报告
   const generateReport = async (hrNotes?: string): Promise<{ success: boolean; reportUrl?: string }> => {
     if (!sessionId.value) {
@@ -996,6 +1020,7 @@ export function useInterviewAssist() {
     resumeInterview,
     quitInterview,
     endAndSaveInterview,
+    endAndSaveOnly,
     endInterview,  // 兼容旧代码
     generateReport,
     askQuestion,
