@@ -39,8 +39,8 @@ export function useResumeDetail() {
       id: resumeDataItem?.id || item.report_id || item.task_id || '',
       candidate_name: resumeDataItem?.candidate_name || item.name,
       position_title: resumeDataItem?.position_title || item.applied_position || '',
-      screening_score: resumeDataItem?.scores,
-      screening_summary: resumeDataItem?.summary,
+      screening_score: resumeDataItem?.screening_score,
+      screening_summary: resumeDataItem?.screening_summary,
       resume_content: resumeDataItem?.resume_content || item.reports?.[0]?.resume_content,
       created_at: item.created_at
     }
@@ -73,8 +73,8 @@ export function useResumeDetail() {
         id: taskResumeData.id || task.task_id,
         candidate_name: taskResumeData.candidate_name || getHistoryTaskName(task),
         position_title: taskResumeData.position_title || '',
-        screening_score: taskResumeData.scores,
-        screening_summary: taskResumeData.summary,
+        screening_score: taskResumeData.screening_score,
+        screening_summary: taskResumeData.screening_summary,
         resume_content: taskResumeData.resume_content,
         created_at: task.created_at
       }

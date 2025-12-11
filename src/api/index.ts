@@ -175,8 +175,8 @@ export const screeningApi = {
         candidate_name: report.candidate_name as string,
         position_title: report.position_title as string,
         resume_content: report.resume_content as string,
-        screening_score: (report.scores || report.screening_score) as ResumeData['screening_score'],
-        screening_summary: (report.summary || report.screening_summary) as string,
+        screening_score: report.screening_score as ResumeData['screening_score'],
+        screening_summary: report.screening_summary as string,
         created_at: report.created_at as string
       }
     } catch {
@@ -211,7 +211,7 @@ export const screeningApi = {
             id: rd.id as string,
             position_title: (rd.position_title || reports?.[0]?.position_info?.position || '未知岗位') as string,
             candidate_name: (rd.candidate_name || '未知候选人') as string,
-            screening_score: (rd.scores || rd.screening_score) as ResumeData['screening_score'],
+            screening_score: rd.screening_score as ResumeData['screening_score'],
             created_at: (rd.created_at || task.created_at) as string,
             task_id: task.task_id as string
           })

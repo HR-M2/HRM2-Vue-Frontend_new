@@ -43,15 +43,15 @@
         <div class="score-breakdown">
           <div class="score-item">
             <span class="label">HR评分:</span>
-            <strong>{{ resume.scores?.hr_score || resume.screening_score?.comprehensive_score || 'N/A' }}</strong>
+            <strong>{{ resume.screening_score?.hr_score || resume.screening_score?.comprehensive_score || 'N/A' }}</strong>
           </div>
           <div class="score-item">
             <span class="label">技术评分:</span>
-            <strong>{{ resume.scores?.technical_score || 'N/A' }}</strong>
+            <strong>{{ resume.screening_score?.technical_score || 'N/A' }}</strong>
           </div>
           <div class="score-item">
             <span class="label">管理评分:</span>
-            <strong>{{ resume.scores?.manager_score || 'N/A' }}</strong>
+            <strong>{{ resume.screening_score?.manager_score || 'N/A' }}</strong>
           </div>
         </div>
 
@@ -64,9 +64,9 @@
         </div>
 
         <!-- 摘要 -->
-        <div v-if="resume.summary || resume.screening_summary" class="resume-summary">
+        <div v-if="resume.screening_summary" class="resume-summary">
           <h5>初筛摘要:</h5>
-          <div v-html="renderMarkdown(resume.summary || resume.screening_summary || '')"></div>
+          <div v-html="renderMarkdown(resume.screening_summary || '')"></div>
         </div>
 
         <!-- 操作按钮 -->
@@ -115,7 +115,7 @@ const sortedResumes = computed(() => {
 
 // 获取综合评分
 const getComprehensiveScore = (resume: ResumeData) => {
-  return resume.scores?.comprehensive_score || resume.screening_score?.comprehensive_score
+  return resume.screening_score?.comprehensive_score
 }
 
 // 视频分析状态

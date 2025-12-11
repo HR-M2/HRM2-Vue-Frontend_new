@@ -253,7 +253,7 @@ const loadPositions = async () => {
 // 获取简历显示标签
 const getResumeLabel = (resume: ResumeData) => {
   const name = resume.candidate_name || '未知候选人'
-  const score = resume.screening_score?.comprehensive_score || resume.scores?.comprehensive_score
+  const score = resume.screening_score?.comprehensive_score
   return score ? `${name} (${score}分)` : name
 }
 

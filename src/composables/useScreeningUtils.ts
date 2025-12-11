@@ -111,7 +111,7 @@ export function useScreeningUtils() {
 
   // 获取处理任务的评分
   const getItemScore = (item: ProcessingTask): ScreeningScore | null => {
-    return item.resume_data?.[0]?.scores || null
+    return item.resume_data?.[0]?.screening_score || null
   }
 
   // 获取历史任务名称
@@ -155,7 +155,7 @@ export function useScreeningUtils() {
   // 获取历史任务评分
   const getHistoryTaskScore = (task: ResumeScreeningTask): ScreeningScore | null => {
     if (task.resume_data && task.resume_data.length > 0) {
-      return task.resume_data[0]?.scores || null
+      return task.resume_data[0]?.screening_score || null
     }
     return null
   }

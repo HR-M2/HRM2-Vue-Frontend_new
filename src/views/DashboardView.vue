@@ -340,7 +340,7 @@ const getTaskPosition = (task: ResumeScreeningTask): string | null => {
 const getTaskScore = (task: ResumeScreeningTask): ScreeningScore | null => {
   if (task.resume_data && task.resume_data.length > 0) {
     const rd = task.resume_data[0]
-    if (rd?.scores) return rd.scores
+    if (rd?.screening_score) return rd.screening_score
   }
   return null
 }

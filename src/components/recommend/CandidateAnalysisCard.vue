@@ -271,9 +271,7 @@ const hasScreeningReport = computed(() => {
 })
 
 const screeningScore = computed(() => {
-  return props.resume.screening_score?.comprehensive_score || 
-         props.resume.scores?.comprehensive_score || 
-         'N/A'
+  return props.resume.screening_score?.comprehensive_score || 'N/A'
 })
 
 const hasInterviewRecords = computed(() => {
