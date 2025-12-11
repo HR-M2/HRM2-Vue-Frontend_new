@@ -165,22 +165,12 @@ export const screeningApi = {
 
   /**
    * 获取简历详情（报告）
+   * 后端返回格式: { report: { id, candidate_name, position_title, screening_score, screening_summary, ... } }
    */
   getResumeDetail: async (resumeId: string): Promise<ResumeData | null> => {
     try {
-      // 后端返回 { report: {...} }，需要提取 report 对象
-      const result = await apiClient.get(ENDPOINTS.SCREENING_REPORT(resumeId)) as unknown as { report: Record<string, unknown> }
-      const report = result.report || result as unknown as Record<string, unknown>
-      // 映射字段名称：后端 scores → screening_score，summary → screening_summary
-      return {
-        id: report.id as string,
-        candidate_name: report.candidate_name as string,
-        position_title: report.position_title as string,
-        resume_content: report.resume_content as string,
-        screening_score: (report.scores || report.screening_score) as ResumeData['screening_score'],
-        screening_summary: (report.summary || report.screening_summary) as string,
-        created_at: report.created_at as string
-      }
+      const result = await apiClient.get(ENDPOINTS.SCREENING_REPORT(resumeId)) as unknown as { report: ResumeData }
+      return result.report || null
     } catch {
       return null
     }
