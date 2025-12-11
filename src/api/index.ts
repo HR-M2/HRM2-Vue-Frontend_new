@@ -168,15 +168,17 @@ export const screeningApi = {
    */
   getResumeDetail: async (resumeId: string): Promise<ResumeData | null> => {
     try {
-      const report = await apiClient.get(ENDPOINTS.SCREENING_REPORT(resumeId)) as unknown as Record<string, unknown>
-      // 映射字段名称
+      // 后端返回 { report: {...} }，需要提取 report 对象
+      const result = await apiClient.get(ENDPOINTS.SCREENING_REPORT(resumeId)) as unknown as { report: Record<string, unknown> }
+      const report = result.report || result as unknown as Record<string, unknown>
+      // 映射字段名称：后端 scores → screening_score，summary → screening_summary
       return {
         id: report.id as string,
         candidate_name: report.candidate_name as string,
         position_title: report.position_title as string,
         resume_content: report.resume_content as string,
-        screening_score: report.screening_score as ResumeData['screening_score'],
-        screening_summary: report.screening_summary as string,
+        screening_score: (report.scores || report.screening_score) as ResumeData['screening_score'],
+        screening_summary: (report.summary || report.screening_summary) as string,
         created_at: report.created_at as string
       }
     } catch {
@@ -415,12 +417,18 @@ export const libraryApi = {
     
     const url = `${ENDPOINTS.LIBRARY}${searchParams.toString() ? '?' + searchParams : ''}`
     const result = await apiClient.get(url) as unknown as {
-      resumes: LibraryResume[]
+      items: LibraryResume[]
       total: number
       page: number
       page_size: number
     }
-    return result || { resumes: [], total: 0, page: 1, page_size: 20 }
+    // 后端返回 items，映射为前端期望的 resumes
+    return {
+      resumes: result?.items || [],
+      total: result?.total || 0,
+      page: result?.page || 1,
+      page_size: result?.page_size || 20
+    }
   },
 
   /**
