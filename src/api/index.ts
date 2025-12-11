@@ -1,233 +1,139 @@
 /**
  * API 模块统一导出
+ * 
+ * 使用统一的 axios 实例和端点常量，响应格式为 {code, message, data}
+ * 后端基础路径: /api/
  */
-import axios from 'axios'
 import type {
   PositionData,
   ResumeScreeningTask,
   ResumeGroup,
   ResumeData,
-  VideoAnalysis,
-  ApiResponse
+  VideoAnalysis
 } from '@/types'
+import { apiClient, rawApiClient, getApiBase, updateApiBase as configUpdateApiBase } from './config'
+import { ENDPOINTS } from './endpoints'
 
-// API 基础路径：优先从 localStorage 读取用户设置
-const getApiBase = (): string => {
-  try {
-    const savedSettings = localStorage.getItem('apiSettings')
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings)
-      if (settings.baseUrl) return settings.baseUrl
-    }
-  } catch {}
-  return import.meta.env.VITE_API_BASE ?? ''
-}
+// 重新导出配置模块的函数
+export { getApiBase }
+export const updateApiBase = configUpdateApiBase
 
-let API_BASE = getApiBase()
-
-// 监听 storage 变化，动态更新 API_BASE
-window.addEventListener('storage', () => {
-  API_BASE = getApiBase()
-})
-
-// 导出更新函数供设置页面调用
-export const updateApiBase = () => {
-  API_BASE = getApiBase()
-}
-
-// 创建 axios 实例
-const apiClient = axios.create({
-  baseURL: API_BASE,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// 响应拦截器
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('API Error:', error.response?.data || error.message)
-    return Promise.reject(error)
-  }
-)
-
+// ==================== 岗位管理 API ====================
 /**
  * 岗位设置 API
- * 后端路径: /position-settings/
+ * 后端路径: /api/positions/
  */
 export const positionApi = {
-  // 获取默认岗位设置（向后兼容）
+  /**
+   * 获取岗位列表（也用于获取默认岗位设置，向后兼容）
+   */
   getCriteria: async (): Promise<PositionData> => {
-    const response = await fetch(`${API_BASE}/position-settings/`)
-    if (!response.ok) {
-      throw new Error(`获取数据失败: ${response.status}`)
-    }
-    const result: ApiResponse<PositionData> = await response.json()
-    if (result.code !== 200) {
-      throw new Error(`API错误: ${result.message}`)
-    }
-    return result.data
+    const data = await apiClient.get<{ positions: PositionData[], total: number }>(ENDPOINTS.POSITIONS)
+    // 返回第一个岗位作为默认岗位（向后兼容）
+    const result = data as unknown as { positions: PositionData[], total: number }
+    return result.positions?.[0] || {} as PositionData
   },
 
-  // 保存默认岗位设置（向后兼容）
+  /**
+   * 保存岗位设置（创建新岗位，向后兼容）
+   */
   saveCriteria: async (data: PositionData): Promise<void> => {
-    const response = await fetch(`${API_BASE}/position-settings/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      throw new Error(`保存数据失败: ${response.status}`)
-    }
+    await apiClient.post(ENDPOINTS.POSITIONS, data)
   },
 
-  // 获取所有岗位列表
+  /**
+   * 获取所有岗位列表
+   */
   getPositions: async (params?: { include_resumes?: boolean }): Promise<{ positions: PositionData[], total: number }> => {
     const searchParams = new URLSearchParams()
     if (params?.include_resumes) searchParams.append('include_resumes', 'true')
-    const url = `${API_BASE}/position-settings/positions/${searchParams.toString() ? '?' + searchParams : ''}`
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`获取岗位列表失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || { positions: [], total: 0 }
+    const url = `${ENDPOINTS.POSITIONS}${searchParams.toString() ? '?' + searchParams : ''}`
+    return await apiClient.get(url) as unknown as { positions: PositionData[], total: number }
   },
 
-  // 创建新岗位
+  /**
+   * 创建新岗位
+   */
   createPosition: async (data: Partial<PositionData>): Promise<PositionData> => {
-    const response = await fetch(`${API_BASE}/position-settings/positions/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || `创建岗位失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    return await apiClient.post(ENDPOINTS.POSITIONS, data) as unknown as PositionData
   },
 
-  // 获取单个岗位详情
+  /**
+   * 获取单个岗位详情
+   */
   getPosition: async (positionId: string, includeResumes = true): Promise<PositionData> => {
-    const url = `${API_BASE}/position-settings/positions/${positionId}/?include_resumes=${includeResumes}`
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`获取岗位详情失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    const url = `${ENDPOINTS.POSITION_DETAIL(positionId)}?include_resumes=${includeResumes}`
+    return await apiClient.get(url) as unknown as PositionData
   },
 
-  // 更新岗位
+  /**
+   * 更新岗位
+   */
   updatePosition: async (positionId: string, data: Partial<PositionData>): Promise<PositionData> => {
-    const response = await fetch(`${API_BASE}/position-settings/positions/${positionId}/`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      throw new Error(`更新岗位失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    return await apiClient.put(ENDPOINTS.POSITION_DETAIL(positionId), data) as unknown as PositionData
   },
 
-  // 删除岗位
+  /**
+   * 删除岗位
+   */
   deletePosition: async (positionId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/position-settings/positions/${positionId}/`, {
-      method: 'DELETE'
-    })
-    if (!response.ok) {
-      throw new Error(`删除岗位失败: ${response.status}`)
-    }
+    await apiClient.delete(ENDPOINTS.POSITION_DETAIL(positionId))
   },
 
-  // 分配简历到岗位
+  /**
+   * 分配简历到岗位
+   */
   assignResumes: async (positionId: string, resumeDataIds: string[]): Promise<{ assigned_count: number, total_resumes: number }> => {
-    const response = await fetch(`${API_BASE}/position-settings/positions/${positionId}/assign-resumes/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resume_data_ids: resumeDataIds })
-    })
-    if (!response.ok) {
-      throw new Error(`分配简历失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    return await apiClient.post(ENDPOINTS.POSITION_RESUMES(positionId), { resume_data_ids: resumeDataIds }) as unknown as { assigned_count: number, total_resumes: number }
   },
 
-  // 从岗位移除简历
+  /**
+   * 从岗位移除简历
+   */
   removeResume: async (positionId: string, resumeId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/position-settings/positions/${positionId}/remove-resume/${resumeId}/`, {
-      method: 'DELETE'
-    })
-    if (!response.ok) {
-      throw new Error(`移除简历失败: ${response.status}`)
-    }
+    await apiClient.delete(ENDPOINTS.POSITION_REMOVE_RESUME(positionId, resumeId))
   },
 
-  // AI生成岗位要求
+  /**
+   * AI生成岗位要求
+   */
   aiGenerate: async (data: {
     description: string
     documents?: Array<{ name: string; content: string }>
   }): Promise<PositionData> => {
-    const response = await fetch(`${API_BASE}/position-settings/ai/generate/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || `AI生成失败: ${response.status}`)
-    }
-    const result = await response.json()
-    if (result.code !== 200) {
-      throw new Error(result.message || 'AI生成失败')
-    }
-    return result.data
+    return await apiClient.post(ENDPOINTS.POSITION_AI_GENERATE, data) as unknown as PositionData
   }
 }
 
+// ==================== 简历筛选 API ====================
 /**
  * 简历筛选 API
- * 后端路径: /resume-screening/
+ * 后端路径: /api/screening/
+ * 
+ * 注意：简历库相关API已迁移到 libraryApi（/api/library/）
  */
 export const screeningApi = {
-  // 提交筛选任务
-  // 期望数据格式: { position: {...}, resumes: [{ name, content, metadata }] }
+  /**
+   * 提交筛选任务
+   * 期望数据格式: { position: {...}, resumes: [{ name, content, metadata }] }
+   */
   submitScreening: async (data: {
     position: Record<string, unknown>
     resumes: Array<{ name: string; content: string; metadata?: { size: number; type: string } }>
   }): Promise<ResumeScreeningTask> => {
-    const response = await fetch(`${API_BASE}/resume-screening/screening/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('API 错误响应:', errorText)
-      throw new Error(`提交失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result
+    return await apiClient.post(ENDPOINTS.SCREENING, data) as unknown as ResumeScreeningTask
   },
 
-  // 查询任务状态
+  /**
+   * 查询任务状态
+   */
   getTaskStatus: async (taskId: string): Promise<ResumeScreeningTask> => {
-    const response = await fetch(`${API_BASE}/resume-screening/tasks/${taskId}/status/`)
-    if (!response.ok) {
-      throw new Error(`获取状态失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || result
+    return await apiClient.get(ENDPOINTS.SCREENING_TASK_STATUS(taskId)) as unknown as ResumeScreeningTask
   },
 
-  // 获取任务历史
+  /**
+   * 获取任务历史
+   */
   getTaskHistory: async (params?: {
     status?: string
     page?: number
@@ -237,94 +143,77 @@ export const screeningApi = {
     if (params?.status) searchParams.append('status', params.status)
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString())
-
-    const response = await fetch(`${API_BASE}/resume-screening/tasks-history/?${searchParams}`)
-    if (!response.ok) {
-      throw new Error(`获取历史失败: ${response.status}`)
-    }
-    const result = await response.json()
-    // 后端返回 { tasks: [...], total, page, page_size }
+    const url = `${ENDPOINTS.SCREENING_TASKS}?${searchParams}`
+    const result = await apiClient.get(url) as unknown as { tasks: ResumeScreeningTask[]; total: number }
     return { tasks: result.tasks || [], total: result.total || 0 }
   },
 
-  // 删除任务
+  /**
+   * 删除任务
+   */
   deleteTask: async (taskId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/resume-screening/tasks/${taskId}/`, {
-      method: 'DELETE'
-    })
-    if (!response.ok) {
-      throw new Error(`删除失败: ${response.status}`)
-    }
+    await apiClient.delete(ENDPOINTS.SCREENING_TASK_DETAIL(taskId))
   },
 
-  // 获取简历数据统计（总数）
+  /**
+   * 获取简历数据统计（总数）
+   */
   getResumeDataStats: async (): Promise<{ total: number }> => {
-    const response = await fetch(`${API_BASE}/resume-screening/resume-data/?page=1&page_size=1`)
-    if (!response.ok) {
-      throw new Error(`获取简历统计失败: ${response.status}`)
-    }
-    const result = await response.json()
+    const result = await apiClient.get(`${ENDPOINTS.SCREENING_DATA}?page=1&page_size=1`) as unknown as { total: number }
     return { total: result.total || 0 }
   },
 
-  // 获取简历详情
+  /**
+   * 获取简历详情（报告）
+   */
   getResumeDetail: async (resumeId: string): Promise<ResumeData | null> => {
     try {
-      const response = await fetch(`${API_BASE}/resume-screening/reports/${resumeId}/detail/`)
-      if (!response.ok) {
-        return null
-      }
-      const result = await response.json()
-      const report = result.report || result.data || result
+      const report = await apiClient.get(ENDPOINTS.SCREENING_REPORT(resumeId)) as unknown as Record<string, unknown>
       // 映射字段名称
       return {
-        id: report.id,
-        candidate_name: report.candidate_name,
-        position_title: report.position_title,
-        resume_content: report.resume_content,
-        screening_score: report.scores,
-        screening_summary: report.summary,
-        created_at: report.created_at
+        id: report.id as string,
+        candidate_name: report.candidate_name as string,
+        position_title: report.position_title as string,
+        resume_content: report.resume_content as string,
+        screening_score: (report.scores || report.screening_score) as ResumeData['screening_score'],
+        screening_summary: (report.summary || report.screening_summary) as string,
+        created_at: report.created_at as string
       }
     } catch {
       return null
     }
   },
 
-  // 获取简历组列表
+  /**
+   * 获取简历组列表
+   */
   getGroups: async (params?: { include_resumes?: boolean }): Promise<ResumeGroup[]> => {
     const searchParams = new URLSearchParams()
     if (params?.include_resumes) searchParams.append('include_resumes', 'true')
-    const url = `${API_BASE}/resume-screening/groups/${searchParams.toString() ? '?' + searchParams : ''}`
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`获取简历组失败: ${response.status}`)
-    }
-    const result = await response.json()
-    // 后端返回 { groups: [...], total, page, page_size }
+    const url = `${ENDPOINTS.SCREENING_GROUPS}${searchParams.toString() ? '?' + searchParams : ''}`
+    const result = await apiClient.get(url) as unknown as { groups: ResumeGroup[] }
     return result.groups || []
   },
 
-  // 获取可用于创建组的简历数据（从已完成任务中获取）
+  /**
+   * 获取可用于创建组的简历数据（从已完成任务中获取）
+   */
   getAvailableResumes: async (): Promise<ResumeData[]> => {
-    const response = await fetch(`${API_BASE}/resume-screening/tasks-history/?status=completed&page_size=100`)
-    if (!response.ok) {
-      throw new Error(`获取简历数据失败: ${response.status}`)
-    }
-    const result = await response.json()
-    // 从任务中提取resume_data
+    const result = await apiClient.get(`${ENDPOINTS.SCREENING_TASKS}?status=completed&page_size=100`) as unknown as { tasks: Array<Record<string, unknown>> }
     const tasks = result.tasks || []
     const resumes: ResumeData[] = []
     for (const task of tasks) {
-      if (task.resume_data && Array.isArray(task.resume_data)) {
-        for (const rd of task.resume_data) {
+      const resumeDataList = task.resume_data as Array<Record<string, unknown>> | undefined
+      if (resumeDataList && Array.isArray(resumeDataList)) {
+        for (const rd of resumeDataList) {
+          const reports = task.reports as Array<{ position_info?: { position?: string } }> | undefined
           resumes.push({
-            id: rd.id,
-            position_title: rd.position_title || task.reports?.[0]?.position_info?.position || '未知岗位',
-            candidate_name: rd.candidate_name || '未知候选人',
-            screening_score: rd.scores || rd.screening_score,
-            created_at: rd.created_at || task.created_at,
-            task_id: task.task_id
+            id: rd.id as string,
+            position_title: (rd.position_title || reports?.[0]?.position_info?.position || '未知岗位') as string,
+            candidate_name: (rd.candidate_name || '未知候选人') as string,
+            screening_score: (rd.scores || rd.screening_score) as ResumeData['screening_score'],
+            created_at: (rd.created_at || task.created_at) as string,
+            task_id: task.task_id as string
           })
         }
       }
@@ -332,69 +221,56 @@ export const screeningApi = {
     return resumes
   },
 
-  // 获取简历组详情
+  /**
+   * 获取简历组详情
+   */
   getGroupDetail: async (groupId: string): Promise<ResumeGroup> => {
-    const response = await fetch(`${API_BASE}/resume-screening/groups/${groupId}/?include_resumes=true`)
-    if (!response.ok) {
-      throw new Error(`获取简历组详情失败: ${response.status}`)
-    }
-    const result = await response.json()
-    // 后端返回 { group: {...}, summary: {...} }
-    return result.group || result
+    const url = `${ENDPOINTS.SCREENING_GROUP_DETAIL(groupId)}?include_resumes=true`
+    const result = await apiClient.get(url) as unknown as { group: ResumeGroup }
+    return result.group || result as unknown as ResumeGroup
   },
 
-  // 创建简历组
+  /**
+   * 创建简历组
+   */
   createGroup: async (data: {
     group_name: string
     resume_data_ids: string[]
     description?: string
   }): Promise<ResumeGroup> => {
-    const response = await fetch(`${API_BASE}/resume-screening/groups/create/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      throw new Error(`创建简历组失败: ${response.status}`)
-    }
-    const result = await response.json()
-    // 后端返回 { message, group_id, group_name, resume_count }
-    return result
+    return await apiClient.post(ENDPOINTS.SCREENING_GROUP_CREATE, data) as unknown as ResumeGroup
   },
 
-  // 添加简历到组
+  /**
+   * 添加简历到组
+   */
   addResumeToGroup: async (data: {
     group_id: string
     resume_data_id: string
   }): Promise<void> => {
-    const response = await fetch(`${API_BASE}/resume-screening/groups/add-resume/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      throw new Error(`添加简历失败: ${response.status}`)
-    }
+    await apiClient.post(ENDPOINTS.SCREENING_GROUP_ADD_RESUME, data)
   },
 
-  // 下载报告（仅返回 Blob）
+  /**
+   * 下载报告（仅返回 Blob）
+   */
   downloadReport: async (reportId: string): Promise<Blob> => {
-    const response = await fetch(`${API_BASE}/resume-screening/reports/${reportId}/download/`)
-    if (!response.ok) {
-      throw new Error(`下载报告失败: ${response.status}`)
-    }
-    return response.blob()
+    const response = await rawApiClient.get(ENDPOINTS.SCREENING_REPORT_DOWNLOAD(reportId), {
+      responseType: 'blob'
+    })
+    return response.data
   },
 
-  // 下载报告（包含文件名）
+  /**
+   * 下载报告（包含文件名）
+   */
   downloadReportWithFilename: async (reportId: string): Promise<{ blob: Blob; filename: string }> => {
-    const response = await fetch(`${API_BASE}/resume-screening/reports/${reportId}/download/`)
-    if (!response.ok) {
-      throw new Error(`下载报告失败: ${response.status}`)
-    }
+    const response = await rawApiClient.get(ENDPOINTS.SCREENING_REPORT_DOWNLOAD(reportId), {
+      responseType: 'blob'
+    })
     
     // 从响应头获取文件名
-    const contentDisposition = response.headers.get('Content-Disposition')
+    const contentDisposition = response.headers['content-disposition']
     let filename = `report_${reportId}.md`
     
     if (contentDisposition) {
@@ -411,64 +287,52 @@ export const screeningApi = {
       }
     }
     
-    const blob = await response.blob()
-    return { blob, filename }
+    return { blob: response.data, filename }
   },
 
-  // 获取简历数据
+  /**
+   * 获取简历数据
+   */
   getResumeData: async (): Promise<ResumeData[]> => {
-    const response = await fetch(`${API_BASE}/resume-screening/data/`)
-    if (!response.ok) {
-      throw new Error(`获取简历数据失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || result
+    return await apiClient.get(ENDPOINTS.SCREENING_DATA) as unknown as ResumeData[]
   }
 }
 
+// ==================== 视频分析 API ====================
 /**
  * 视频分析 API
- * 后端路径: /video-analysis/
+ * 后端路径: /api/videos/
  */
 export const videoApi = {
-  // 上传视频
+  /**
+   * 上传视频
+   */
   uploadVideo: async (formData: FormData): Promise<VideoAnalysis> => {
-    const response = await fetch(`${API_BASE}/video-analysis/`, {
-      method: 'POST',
-      body: formData
-    })
-    if (!response.ok) {
-      throw new Error(`上传视频失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || result
+    return await apiClient.post(ENDPOINTS.VIDEOS_UPLOAD, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }) as unknown as VideoAnalysis
   },
 
-  // 获取视频分析状态
+  /**
+   * 获取视频分析状态
+   */
   getVideoStatus: async (videoId: string): Promise<VideoAnalysis> => {
-    const response = await fetch(`${API_BASE}/video-analysis/${videoId}/status/`)
-    if (!response.ok) {
-      throw new Error(`获取状态失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || result
+    return await apiClient.get(ENDPOINTS.VIDEO_STATUS(videoId)) as unknown as VideoAnalysis
   },
 
-  // 获取视频列表
+  /**
+   * 获取视频列表
+   */
   getVideoList: async (): Promise<VideoAnalysis[]> => {
-    const response = await fetch(`${API_BASE}/video-analysis/list/`)
-    if (!response.ok) {
-      throw new Error(`获取视频列表失败: ${response.status}`)
-    }
-    const result = await response.json()
-    // 后端返回 { videos: [...], total, page, page_size }
+    const result = await apiClient.get(ENDPOINTS.VIDEOS) as unknown as { videos: VideoAnalysis[] }
     return result.videos || []
   }
 }
 
+// ==================== 最终推荐 API ====================
 /**
  * 最终推荐 API
- * 后端路径: /final-recommend/
+ * 后端路径: /api/recommend/
  * 
  * 注意: 批量评估功能已废弃，以下方法已移除:
  * - createEvaluation
@@ -480,28 +344,19 @@ export const videoApi = {
  * 请使用 analyzeCandidate 和 getCandidateAnalysis 进行单人综合分析。
  */
 export const recommendApi = {
-  // 单人综合分析
+  /**
+   * 单人综合分析
+   */
   analyzeCandidate: async (resumeId: string): Promise<ComprehensiveAnalysisResult> => {
-    const response = await fetch(`${API_BASE}/final-recommend/comprehensive-analysis/${resumeId}/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    })
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      throw new Error(error.message || `综合分析失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    return await apiClient.post(ENDPOINTS.RECOMMEND_ANALYSIS(resumeId)) as unknown as ComprehensiveAnalysisResult
   },
 
-  // 获取候选人的综合分析历史
+  /**
+   * 获取候选人的综合分析历史
+   */
   getCandidateAnalysis: async (resumeId: string): Promise<ComprehensiveAnalysisResult | null> => {
-    const response = await fetch(`${API_BASE}/final-recommend/comprehensive-analysis/${resumeId}/`)
-    if (!response.ok) {
-      throw new Error(`获取分析结果失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || null
+    const result = await apiClient.get(ENDPOINTS.RECOMMEND_ANALYSIS(resumeId)) as unknown as ComprehensiveAnalysisResult | null
+    return result || null
   }
 }
 
@@ -530,12 +385,15 @@ export interface ComprehensiveAnalysisResult {
   created_at?: string
 }
 
+// ==================== 简历库 API ====================
 /**
  * 简历库 API
- * 后端路径: /resume-screening/library/
+ * 后端路径: /api/library/
  */
 export const libraryApi = {
-  // 获取简历库列表
+  /**
+   * 获取简历库列表
+   */
   getList: async (params?: {
     page?: number
     page_size?: number
@@ -555,16 +413,19 @@ export const libraryApi = {
     if (params?.is_screened !== undefined) searchParams.append('is_screened', params.is_screened.toString())
     if (params?.is_assigned !== undefined) searchParams.append('is_assigned', params.is_assigned.toString())
     
-    const url = `${API_BASE}/resume-screening/library/${searchParams.toString() ? '?' + searchParams : ''}`
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`获取简历库失败: ${response.status}`)
+    const url = `${ENDPOINTS.LIBRARY}${searchParams.toString() ? '?' + searchParams : ''}`
+    const result = await apiClient.get(url) as unknown as {
+      resumes: LibraryResume[]
+      total: number
+      page: number
+      page_size: number
     }
-    const result = await response.json()
-    return result.data || { resumes: [], total: 0, page: 1, page_size: 20 }
+    return result || { resumes: [], total: 0, page: 1, page_size: 20 }
   },
 
-  // 上传简历到简历库
+  /**
+   * 上传简历到简历库
+   */
   upload: async (resumes: Array<{
     name: string
     content: string
@@ -575,77 +436,50 @@ export const libraryApi = {
     uploaded_count: number
     skipped_count: number
   }> => {
-    const response = await fetch(`${API_BASE}/resume-screening/library/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resumes })
-    })
-    if (!response.ok) {
-      throw new Error(`上传简历失败: ${response.status}`)
+    return await apiClient.post(ENDPOINTS.LIBRARY, { resumes }) as unknown as {
+      uploaded: Array<{ id: string; filename: string; candidate_name: string }>
+      skipped: Array<{ filename: string; reason: string }>
+      uploaded_count: number
+      skipped_count: number
     }
-    const result = await response.json()
-    return result.data
   },
 
-  // 获取简历详情
+  /**
+   * 获取简历详情
+   */
   getDetail: async (resumeId: string): Promise<LibraryResume> => {
-    const response = await fetch(`${API_BASE}/resume-screening/library/${resumeId}/`)
-    if (!response.ok) {
-      throw new Error(`获取简历详情失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    return await apiClient.get(ENDPOINTS.LIBRARY_DETAIL(resumeId)) as unknown as LibraryResume
   },
 
-  // 更新简历信息
+  /**
+   * 更新简历信息
+   */
   update: async (resumeId: string, data: {
     candidate_name?: string
     notes?: string
   }): Promise<void> => {
-    const response = await fetch(`${API_BASE}/resume-screening/library/${resumeId}/`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      throw new Error(`更新简历失败: ${response.status}`)
-    }
+    await apiClient.put(ENDPOINTS.LIBRARY_DETAIL(resumeId), data)
   },
 
-  // 删除简历
+  /**
+   * 删除简历
+   */
   delete: async (resumeId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/resume-screening/library/${resumeId}/`, {
-      method: 'DELETE'
-    })
-    if (!response.ok) {
-      throw new Error(`删除简历失败: ${response.status}`)
-    }
+    await apiClient.delete(ENDPOINTS.LIBRARY_DETAIL(resumeId))
   },
 
-  // 批量删除简历
+  /**
+   * 批量删除简历
+   */
   batchDelete: async (resumeIds: string[]): Promise<void> => {
-    const response = await fetch(`${API_BASE}/resume-screening/library/batch-delete/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resume_ids: resumeIds })
-    })
-    if (!response.ok) {
-      throw new Error(`批量删除失败: ${response.status}`)
-    }
+    await apiClient.post(ENDPOINTS.LIBRARY_BATCH_DELETE, { resume_ids: resumeIds })
   },
 
-  // 检查哈希值是否已存在
+  /**
+   * 检查哈希值是否已存在
+   */
   checkHashes: async (hashes: string[]): Promise<{ exists: Record<string, boolean>; existing_count: number }> => {
-    const response = await fetch(`${API_BASE}/resume-screening/library/check-hash/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hashes })
-    })
-    if (!response.ok) {
-      throw new Error(`检查哈希值失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    return await apiClient.post(ENDPOINTS.LIBRARY_CHECK_HASH, { hashes }) as unknown as { exists: Record<string, boolean>; existing_count: number }
   }
 }
 
@@ -666,11 +500,15 @@ export interface LibraryResume {
   updated_at?: string
 }
 
+// ==================== 开发测试工具 API ====================
 /**
  * 开发测试工具 API
+ * 后端路径: /api/screening/dev/
  */
 export const devToolsApi = {
-  // 生成随机简历
+  /**
+   * 生成随机简历
+   */
   generateResumes: async (params: {
     position: {
       position: string
@@ -688,64 +526,49 @@ export const devToolsApi = {
     skipped_count: number
     requested_count: number
   }> => {
-    const response = await fetch(`${API_BASE}/resume-screening/dev/generate-resumes/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
-    })
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      throw new Error(error.message || `生成简历失败: ${response.status}`)
+    return await apiClient.post(ENDPOINTS.SCREENING_DEV_GENERATE, params) as unknown as {
+      added: Array<{ id: string; filename: string; candidate_name: string }>
+      skipped: Array<{ filename: string; reason: string }>
+      added_count: number
+      skipped_count: number
+      requested_count: number
     }
-    const result = await response.json()
-    return result.data
   }
 }
 
+// ==================== 面试辅助 API ====================
 /**
  * 面试辅助 API
- * 后端路径: /interview-assist/
+ * 后端路径: /api/interviews/
  */
 export const interviewAssistApi = {
-  // 创建面试会话
+  /**
+   * 创建面试会话
+   */
   createSession: async (data: {
     resume_data_id: string
     job_config?: Record<string, unknown>
   }): Promise<InterviewSession> => {
-    const response = await fetch(`${API_BASE}/interview-assist/sessions/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      throw new Error(error.message || `创建会话失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    return await apiClient.post(ENDPOINTS.INTERVIEW_SESSIONS, data) as unknown as InterviewSession
   },
 
-  // 获取会话详情
+  /**
+   * 获取会话详情
+   */
   getSession: async (sessionId: string): Promise<InterviewSession> => {
-    const response = await fetch(`${API_BASE}/interview-assist/sessions/${sessionId}/`)
-    if (!response.ok) {
-      throw new Error(`获取会话失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data
+    return await apiClient.get(ENDPOINTS.INTERVIEW_SESSION_DETAIL(sessionId)) as unknown as InterviewSession
   },
 
-  // 结束会话
+  /**
+   * 结束会话
+   */
   endSession: async (sessionId: string): Promise<void> => {
-    const response = await fetch(`${API_BASE}/interview-assist/sessions/${sessionId}/`, {
-      method: 'DELETE'
-    })
-    if (!response.ok) {
-      throw new Error(`结束会话失败: ${response.status}`)
-    }
+    await apiClient.delete(ENDPOINTS.INTERVIEW_SESSION_DETAIL(sessionId))
   },
 
-  // 生成面试问题
+  /**
+   * 生成面试问题
+   */
   generateQuestions: async (sessionId: string, params?: {
     categories?: string[]
     candidate_level?: string
@@ -757,20 +580,16 @@ export const interviewAssistApi = {
     resume_highlights: string[]
     interest_points?: Array<{ content: string; question: string; reason?: string }>
   }> => {
-    const response = await fetch(`${API_BASE}/interview-assist/sessions/${sessionId}/generate-questions/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params || {})
-    })
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      throw new Error(error.message || `生成问题失败: ${response.status}`)
+    return await apiClient.post(ENDPOINTS.INTERVIEW_QUESTIONS(sessionId), params || {}) as unknown as {
+      question_pool: InterviewQuestion[]
+      resume_highlights: string[]
+      interest_points?: Array<{ content: string; question: string; reason?: string }>
     }
-    const result = await response.json()
-    return result.data
   },
 
-  // 记录问答并生成候选提问
+  /**
+   * 记录问答并生成候选提问
+   */
   recordQA: async (sessionId: string, data: {
     question: {
       content: string
@@ -789,20 +608,17 @@ export const interviewAssistApi = {
     candidate_questions: CandidateQuestion[]  // LLM生成的候选问题
     hr_action_hints: string[]
   }> => {
-    const response = await fetch(`${API_BASE}/interview-assist/sessions/${sessionId}/record-qa/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    })
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      throw new Error(error.message || `记录问答失败: ${response.status}`)
+    return await apiClient.post(ENDPOINTS.INTERVIEW_QA(sessionId), data) as unknown as {
+      round_number: number
+      evaluation: AnswerEvaluation | null
+      candidate_questions: CandidateQuestion[]
+      hr_action_hints: string[]
     }
-    const result = await response.json()
-    return result.data
   },
 
-  // 生成最终报告
+  /**
+   * 生成最终报告
+   */
   generateReport: async (sessionId: string, params?: {
     include_conversation_log?: boolean
     hr_notes?: string
@@ -810,20 +626,15 @@ export const interviewAssistApi = {
     report: InterviewReport
     report_file_url: string | null
   }> => {
-    const response = await fetch(`${API_BASE}/interview-assist/sessions/${sessionId}/generate-report/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params || {})
-    })
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      throw new Error(error.message || `生成报告失败: ${response.status}`)
+    return await apiClient.post(ENDPOINTS.INTERVIEW_REPORT(sessionId), params || {}) as unknown as {
+      report: InterviewReport
+      report_file_url: string | null
     }
-    const result = await response.json()
-    return result.data
   },
 
-  // 根据简历ID获取面试会话列表
+  /**
+   * 根据简历ID获取面试会话列表
+   */
   getSessionsByResumeId: async (resumeId: string): Promise<Array<{
     id: string
     resume_data_id: string
@@ -839,12 +650,23 @@ export const interviewAssistApi = {
     }
     created_at: string
   }>> => {
-    const response = await fetch(`${API_BASE}/interview-assist/sessions/?resume_id=${resumeId}`)
-    if (!response.ok) {
-      throw new Error(`获取会话列表失败: ${response.status}`)
-    }
-    const result = await response.json()
-    return result.data || []
+    const url = `${ENDPOINTS.INTERVIEW_SESSIONS}?resume_id=${resumeId}`
+    const result = await apiClient.get(url) as unknown as Array<{
+      id: string
+      resume_data_id: string
+      qa_records: Array<{ question: string; answer: string }>
+      final_report?: {
+        overall_assessment?: {
+          recommendation_score: number
+          recommendation: string
+          summary: string
+        }
+        highlights?: string[]
+        red_flags?: string[]
+      }
+      created_at: string
+    }>
+    return result || []
   }
 }
 
