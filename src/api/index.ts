@@ -337,6 +337,13 @@ export const videoApi = {
  */
 export const recommendApi = {
   /**
+   * 获取推荐统计数据
+   */
+  getStats: async (): Promise<{ analyzed_count: number }> => {
+    return await apiClient.get(ENDPOINTS.RECOMMEND_STATS) as unknown as { analyzed_count: number }
+  },
+
+  /**
    * 单人综合分析
    * 注意：AI分析耗时较长，使用120秒超时
    */

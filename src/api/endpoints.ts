@@ -120,6 +120,9 @@ export const ENDPOINTS = {
   // 后端路由: apps/final_recommend/urls.py
   // 基础路径: /api/recommend/
   
+  /** 推荐统计 - GET */
+  RECOMMEND_STATS: '/recommend/stats/',
+  
   /** 综合分析 - GET获取, POST创建 */
   RECOMMEND_ANALYSIS: (resumeId: string) => `/recommend/analysis/${resumeId}/`,
 

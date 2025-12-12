@@ -185,7 +185,7 @@ import {
   VideoCamera,
   ChatDotRound
 } from '@element-plus/icons-vue'
-import { screeningApi, videoApi, positionApi } from '@/api'
+import { screeningApi, videoApi, positionApi, recommendApi } from '@/api'
 import type { ResumeScreeningTask, PositionData, VideoAnalysis, ScreeningScore } from '@/types'
 
 // 加载状态
@@ -386,9 +386,13 @@ const fetchData = async () => {
     // 3. 已完成面试：已完成视频分析的数量
     stats.completedInterviews = videosArr.filter((v: VideoAnalysis) => v.status === 'completed').length
 
-    // 4. 已总结推荐：暂时设为0（需要后端提供最终推荐完成的统计接口）
-    // TODO: 对接最终推荐完成统计 API
-    stats.recommendedResumes = 0
+    // 4. 已总结推荐：调用统计接口获取已完成综合分析的数量
+    try {
+      const recommendStats = await recommendApi.getStats()
+      stats.recommendedResumes = recommendStats.analyzed_count || 0
+    } catch {
+      stats.recommendedResumes = 0
+    }
 
     // 更新统计卡片
     if (statCards[0]) statCards[0].value = stats.totalResumes
