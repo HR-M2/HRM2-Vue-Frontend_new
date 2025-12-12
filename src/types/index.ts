@@ -9,12 +9,12 @@ export interface ApiResponse<T> {
   data: T
 }
 
-// 分页响应
+// 分页响应（匹配后端 ApiResponse.paginated 格式）
 export interface PaginatedResponse<T> {
-  results: T[]
-  count: number
-  next: string | null
-  previous: string | null
+  items: T[]
+  total: number
+  page: number
+  page_size: number
 }
 
 /**
@@ -82,8 +82,8 @@ export interface ResumeDataScore {
   id?: string
   candidate_name?: string
   position_title?: string
-  scores?: ScreeningScore
-  summary?: string
+  screening_score?: ScreeningScore
+  screening_summary?: string
   json_content?: string
   resume_content?: string
   report_md_url?: string
@@ -115,10 +115,8 @@ export interface ResumeData {
   position_title: string
   candidate_name: string
   resume_content?: string
-  scores?: ScreeningScore
-  screening_score?: ScreeningScore  // 别名
-  summary?: string
-  screening_summary?: string  // 别名
+  screening_score?: ScreeningScore
+  screening_summary?: string
   report_md_url?: string
   report_json_url?: string
   video_analysis_status?: string

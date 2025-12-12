@@ -111,9 +111,7 @@ const getResumeLabel = (resume: ResumeData) => {
 
 // 获取评分
 const getScore = (resume: ResumeData) => {
-  return resume.screening_score?.comprehensive_score || 
-         resume.scores?.comprehensive_score || 
-         null
+  return resume.screening_score?.comprehensive_score || null
 }
 
 // 选择简历
