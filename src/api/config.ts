@@ -76,7 +76,7 @@ export class ApiError extends Error {
  */
 export const apiClient = axios.create({
   baseURL: API_BASE,
-  timeout: 30000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -105,8 +105,9 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse<ApiResponseFormat>) => {
     const { code, message, data } = response.data
     
-    // 业务错误（code !== 200）
-    if (code !== 200) {
+    // 业务错误（code 不在成功范围内）
+    // 200: OK, 201: Created, 202: Accepted
+    if (![200, 201, 202].includes(code)) {
       console.error('API Business Error:', { code, message, data })
       return Promise.reject(new ApiError(code, message, data))
     }

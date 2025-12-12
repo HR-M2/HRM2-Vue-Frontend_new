@@ -338,9 +338,12 @@ export const videoApi = {
 export const recommendApi = {
   /**
    * 单人综合分析
+   * 注意：AI分析耗时较长，使用120秒超时
    */
   analyzeCandidate: async (resumeId: string): Promise<ComprehensiveAnalysisResult> => {
-    return await apiClient.post(ENDPOINTS.RECOMMEND_ANALYSIS(resumeId)) as unknown as ComprehensiveAnalysisResult
+    return await apiClient.post(ENDPOINTS.RECOMMEND_ANALYSIS(resumeId), null, {
+      timeout: 120000  // AI分析需要更长时间
+    }) as unknown as ComprehensiveAnalysisResult
   },
 
   /**
@@ -506,6 +509,7 @@ export interface LibraryResume {
 export const devToolsApi = {
   /**
    * 生成随机简历
+   * 注意：LLM 串行生成简历较慢，需要更长超时时间
    */
   generateResumes: async (params: {
     position: {
@@ -524,7 +528,9 @@ export const devToolsApi = {
     skipped_count: number
     requested_count: number
   }> => {
-    return await apiClient.post(ENDPOINTS.SCREENING_DEV_GENERATE, params) as unknown as {
+    // 每份简历约需 10-15 秒，设置超时 = 数量 * 20秒 + 30秒缓冲，最少120秒
+    const timeout = Math.max(120000, params.count * 20000 + 30000)
+    return await apiClient.post(ENDPOINTS.SCREENING_DEV_GENERATE, params, { timeout }) as unknown as {
       added: Array<{ id: string; filename: string; candidate_name: string }>
       skipped: Array<{ filename: string; reason: string }>
       added_count: number
@@ -566,6 +572,7 @@ export const interviewAssistApi = {
 
   /**
    * 生成面试问题
+   * 注意：此 API 后端需要多次 LLM 调用，超时设置为 90 秒
    */
   generateQuestions: async (sessionId: string, params?: {
     categories?: string[]
@@ -578,7 +585,10 @@ export const interviewAssistApi = {
     resume_highlights: string[]
     interest_points?: Array<{ content: string; question: string; reason?: string }>
   }> => {
-    return await apiClient.post(ENDPOINTS.INTERVIEW_QUESTIONS(sessionId), params || {}) as unknown as {
+    // 后端需要串行调用多次 LLM（简历问题 + 各类别技能问题），需要更长超时
+    return await apiClient.post(ENDPOINTS.INTERVIEW_QUESTIONS(sessionId), params || {}, {
+      timeout: 90000  // 90 秒超时
+    }) as unknown as {
       question_pool: InterviewQuestion[]
       resume_highlights: string[]
       interest_points?: Array<{ content: string; question: string; reason?: string }>
@@ -606,7 +616,10 @@ export const interviewAssistApi = {
     candidate_questions: CandidateQuestion[]  // LLM生成的候选问题
     hr_action_hints: string[]
   }> => {
-    return await apiClient.post(ENDPOINTS.INTERVIEW_QA(sessionId), data) as unknown as {
+    // 后端调用 LLM 生成候选问题，需要更长超时
+    return await apiClient.post(ENDPOINTS.INTERVIEW_QA(sessionId), data, {
+      timeout: 60000  // 60 秒超时
+    }) as unknown as {
       round_number: number
       evaluation: AnswerEvaluation | null
       candidate_questions: CandidateQuestion[]
@@ -616,6 +629,7 @@ export const interviewAssistApi = {
 
   /**
    * 生成最终报告
+   * 注意：此 API 后端需要 LLM 调用，超时设置为 60 秒
    */
   generateReport: async (sessionId: string, params?: {
     include_conversation_log?: boolean
@@ -624,7 +638,10 @@ export const interviewAssistApi = {
     report: InterviewReport
     report_file_url: string | null
   }> => {
-    return await apiClient.post(ENDPOINTS.INTERVIEW_REPORT(sessionId), params || {}) as unknown as {
+    // 后端调用 LLM 生成报告，需要更长超时
+    return await apiClient.post(ENDPOINTS.INTERVIEW_REPORT(sessionId), params || {}, {
+      timeout: 60000  // 60 秒超时
+    }) as unknown as {
       report: InterviewReport
       report_file_url: string | null
     }
