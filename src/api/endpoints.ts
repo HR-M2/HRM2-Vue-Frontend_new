@@ -75,12 +75,6 @@ export const ENDPOINTS = {
   
   /** 开发工具：生成随机简历 - POST */
   SCREENING_DEV_GENERATE: '/screening/dev/generate-resumes/',
-  
-  /** 开发工具：强制错误 - POST */
-  SCREENING_DEV_FORCE_ERROR: '/screening/dev/force-error/',
-  
-  /** 开发工具：重置状态 - POST */
-  SCREENING_DEV_RESET_STATE: '/screening/dev/reset-state/',
 
   // ==================== 视频分析 ====================
   // 后端路由: apps/video_analysis/urls.py

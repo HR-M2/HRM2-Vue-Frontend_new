@@ -202,16 +202,6 @@ export const screeningApi = {
   },
 
   /**
-   * 下载报告（仅返回 Blob）
-   */
-  downloadReport: async (reportId: string): Promise<Blob> => {
-    const response = await rawApiClient.get(ENDPOINTS.SCREENING_REPORT_DOWNLOAD(reportId), {
-      responseType: 'blob'
-    })
-    return response.data
-  },
-
-  /**
    * 下载报告（包含文件名）
    */
   downloadReportWithFilename: async (reportId: string): Promise<{ blob: Blob; filename: string }> => {
@@ -238,13 +228,6 @@ export const screeningApi = {
     }
     
     return { blob: response.data, filename }
-  },
-
-  /**
-   * 获取简历数据
-   */
-  getResumeData: async (): Promise<ResumeData[]> => {
-    return await apiClient.get(ENDPOINTS.SCREENING_DATA) as unknown as ResumeData[]
   }
 }
 
