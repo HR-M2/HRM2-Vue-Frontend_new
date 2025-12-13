@@ -64,7 +64,7 @@ export const ENDPOINTS = {
   /** 报告下载 - GET */
   SCREENING_REPORT_DOWNLOAD: (id: string) => `/screening/reports/${id}/download/`,
   
-  /** 筛选后的简历数据 - GET */
+  /** 筛选后的简历数据 - GET（预留：当前前端未使用） */
   SCREENING_DATA: '/screening/data/',
   
   /** 视频关联 - POST */

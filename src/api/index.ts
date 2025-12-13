@@ -155,14 +155,6 @@ export const screeningApi = {
   },
 
   /**
-   * 获取简历数据统计（总数）
-   */
-  getResumeDataStats: async (): Promise<{ total: number }> => {
-    const result = await apiClient.get(`${ENDPOINTS.SCREENING_DATA}?page=1&page_size=1`) as unknown as { total: number }
-    return { total: result.total || 0 }
-  },
-
-  /**
    * 获取简历详情（报告）
    * 后端返回格式: { report: { id, candidate_name, position_title, screening_score, screening_summary, ... } }
    */
@@ -228,6 +220,46 @@ export const screeningApi = {
     }
     
     return { blob: response.data, filename }
+  },
+
+  /**
+   * 关联简历与视频
+   * 将简历数据与视频分析记录建立关联
+   */
+  linkVideo: async (resumeDataId: string, videoAnalysisId: string): Promise<{
+    resume_data_id: string
+    video_analysis_id: string
+    candidate_name: string
+    video_name: string
+  }> => {
+    return await apiClient.post(ENDPOINTS.SCREENING_VIDEO_LINK, {
+      resume_data_id: resumeDataId,
+      video_analysis_id: videoAnalysisId
+    }) as unknown as {
+      resume_data_id: string
+      video_analysis_id: string
+      candidate_name: string
+      video_name: string
+    }
+  },
+
+  /**
+   * 解除简历与视频关联
+   */
+  unlinkVideo: async (resumeDataId: string): Promise<{
+    resume_data_id: string
+    disconnected_video_id: string
+    candidate_name: string
+    video_name: string
+  }> => {
+    return await apiClient.post(ENDPOINTS.SCREENING_VIDEO_UNLINK, {
+      resume_data_id: resumeDataId
+    }) as unknown as {
+      resume_data_id: string
+      disconnected_video_id: string
+      candidate_name: string
+      video_name: string
+    }
   }
 }
 
@@ -259,6 +291,34 @@ export const videoApi = {
   getVideoList: async (): Promise<VideoAnalysis[]> => {
     const result = await apiClient.get(ENDPOINTS.VIDEOS) as unknown as { videos: VideoAnalysis[] }
     return result.videos || []
+  },
+
+  /**
+   * 更新视频分析结果
+   * 用于更新人格特征分数、欺诈检测分数等
+   */
+  updateVideo: async (videoId: string, data: {
+    fraud_score?: number
+    neuroticism_score?: number
+    extraversion_score?: number
+    openness_score?: number
+    agreeableness_score?: number
+    conscientiousness_score?: number
+    summary?: string
+    confidence_score?: number
+    status?: string
+  }): Promise<{
+    id: string
+    status: string
+    analysis_result: Record<string, unknown>
+    resume_data_id?: string
+  }> => {
+    return await apiClient.post(ENDPOINTS.VIDEO_DETAIL(videoId), data) as unknown as {
+      id: string
+      status: string
+      analysis_result: Record<string, unknown>
+      resume_data_id?: string
+    }
   }
 }
 
