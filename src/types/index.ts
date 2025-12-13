@@ -149,6 +149,47 @@ export interface VideoAnalysis {
  */
 
 /**
+ * 简历管理模块 - 统一简历模型
+ * 合并原 ResumeLibrary 和 ResumeData
+ */
+export type ResumeStatus = 'pending' | 'screened' | 'interviewing' | 'analyzed'
+
+export interface Resume {
+  id: string
+  // 文件信息
+  filename: string
+  file_hash: string
+  file_size: number
+  file_type: string
+  // 候选人信息
+  candidate_name: string
+  content?: string
+  content_preview?: string
+  // 岗位关联
+  position_id?: string | null
+  position_title?: string | null
+  // 状态管理
+  status: ResumeStatus
+  // 筛选结果
+  screening_result?: {
+    score?: number
+    dimensions?: Record<string, unknown>
+    summary?: string
+  } | null
+  screening_report?: string | null
+  // 关联数据
+  video_analysis?: VideoAnalysis | null
+  // 备注
+  notes?: string | null
+  // 时间戳
+  created_at: string
+  updated_at?: string
+  // 兼容字段（计算属性）
+  is_screened?: boolean
+  is_assigned?: boolean
+}
+
+/**
  * 简历文件类型
  */
 export interface ResumeFile {
