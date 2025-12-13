@@ -67,24 +67,6 @@ export const ENDPOINTS = {
   /** 筛选后的简历数据 - GET */
   SCREENING_DATA: '/screening/data/',
   
-  /** 简历组列表 - GET */
-  SCREENING_GROUPS: '/screening/groups/',
-  
-  /** 创建简历组 - POST */
-  SCREENING_GROUP_CREATE: '/screening/groups/create/',
-  
-  /** 简历组详情 - GET/DELETE */
-  SCREENING_GROUP_DETAIL: (id: string) => `/screening/groups/${id}/`,
-  
-  /** 添加简历到组 - POST */
-  SCREENING_GROUP_ADD_RESUME: '/screening/groups/add-resume/',
-  
-  /** 从组移除简历 - POST */
-  SCREENING_GROUP_REMOVE_RESUME: '/screening/groups/remove-resume/',
-  
-  /** 设置组状态 - POST */
-  SCREENING_GROUP_SET_STATUS: '/screening/groups/set-status/',
-  
   /** 视频关联 - POST */
   SCREENING_VIDEO_LINK: '/screening/videos/link/',
   

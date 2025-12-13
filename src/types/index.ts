@@ -90,26 +90,6 @@ export interface ResumeDataScore {
   report_json_url?: string
 }
 
-export type ResumeGroupStatus =
-  | 'pending'
-  | 'interview_analysis'
-  | 'interview_analysis_completed'
-  | 'comprehensive_screening'
-  | 'completed'
-
-export interface ResumeGroup {
-  id: string
-  position_title: string
-  position_details?: Record<string, unknown>
-  group_name: string
-  description?: string
-  resume_count: number
-  status: ResumeGroupStatus
-  created_at: string
-  updated_at?: string
-  resumes?: ResumeData[]
-}
-
 export interface ResumeData {
   id: string
   position_title: string

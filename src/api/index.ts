@@ -7,7 +7,6 @@
 import type {
   PositionData,
   ResumeScreeningTask,
-  ResumeGroup,
   ResumeData,
   VideoAnalysis
 } from '@/types'
@@ -177,17 +176,6 @@ export const screeningApi = {
   },
 
   /**
-   * 获取简历组列表
-   */
-  getGroups: async (params?: { include_resumes?: boolean }): Promise<ResumeGroup[]> => {
-    const searchParams = new URLSearchParams()
-    if (params?.include_resumes) searchParams.append('include_resumes', 'true')
-    const url = `${ENDPOINTS.SCREENING_GROUPS}${searchParams.toString() ? '?' + searchParams : ''}`
-    const result = await apiClient.get(url) as unknown as { groups: ResumeGroup[] }
-    return result.groups || []
-  },
-
-  /**
    * 获取可用于创建组的简历数据（从已完成任务中获取）
    */
   getAvailableResumes: async (): Promise<ResumeData[]> => {
@@ -211,36 +199,6 @@ export const screeningApi = {
       }
     }
     return resumes
-  },
-
-  /**
-   * 获取简历组详情
-   */
-  getGroupDetail: async (groupId: string): Promise<ResumeGroup> => {
-    const url = `${ENDPOINTS.SCREENING_GROUP_DETAIL(groupId)}?include_resumes=true`
-    const result = await apiClient.get(url) as unknown as { group: ResumeGroup }
-    return result.group || result as unknown as ResumeGroup
-  },
-
-  /**
-   * 创建简历组
-   */
-  createGroup: async (data: {
-    group_name: string
-    resume_data_ids: string[]
-    description?: string
-  }): Promise<ResumeGroup> => {
-    return await apiClient.post(ENDPOINTS.SCREENING_GROUP_CREATE, data) as unknown as ResumeGroup
-  },
-
-  /**
-   * 添加简历到组
-   */
-  addResumeToGroup: async (data: {
-    group_id: string
-    resume_data_id: string
-  }): Promise<void> => {
-    await apiClient.post(ENDPOINTS.SCREENING_GROUP_ADD_RESUME, data)
   },
 
   /**
