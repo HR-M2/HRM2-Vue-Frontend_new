@@ -185,7 +185,7 @@ import {
   VideoCamera,
   ChatDotRound
 } from '@element-plus/icons-vue'
-import { screeningApi, videoApi, positionApi, recommendApi } from '@/api'
+import { screeningApi, videoApi, positionApi, recommendApi, resumeApi } from '@/api'
 import type { ResumeScreeningTask, PositionData, VideoAnalysis, ScreeningScore } from '@/types'
 
 // 加载状态
@@ -350,11 +350,12 @@ const fetchData = async () => {
   loading.value = true
   try {
     // 获取所有已完成的任务（用于统计总简历数）
-    const [allTasksResult, recentTasksResult, positionsResult, videos] = await Promise.all([
+    const [allTasksResult, recentTasksResult, positionsResult, videos, resumeStats] = await Promise.all([
       screeningApi.getTaskHistory({ status: 'completed', page: 1, page_size: 100 }).catch(() => ({ tasks: [], total: 0 })),
       screeningApi.getTaskHistory({ status: 'completed', page: 1, page_size: 5 }).catch(() => ({ tasks: [], total: 0 })),
       positionApi.getPositions({ include_resumes: true }).catch(() => ({ positions: [], total: 0 })),
-      videoApi.getVideoList().catch(() => [])
+      videoApi.getVideoList().catch(() => []),
+      resumeApi.getStats().catch(() => ({ total_count: 0, interview_completed: 0 }))
     ])
 
     const allTasks = allTasksResult.tasks || []
@@ -383,8 +384,8 @@ const fetchData = async () => {
     // 2. 已初筛简历：所有岗位分配的简历总数
     stats.screenedResumes = positions.reduce((sum: number, p: PositionData) => sum + (p.resume_count || 0), 0)
 
-    // 3. 已完成面试：已完成视频分析的数量
-    stats.completedInterviews = videosArr.filter((v: VideoAnalysis) => v.status === 'completed').length
+    // 3. 已完成面试：从 resumeStats 获取已完成面试的数量
+    stats.completedInterviews = resumeStats.interview_completed || 0
 
     // 4. 已总结推荐：调用统计接口获取已完成综合分析的数量
     try {

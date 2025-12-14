@@ -427,13 +427,13 @@ export const resumeApi = {
     
     const url = `${ENDPOINTS.RESUMES}${searchParams.toString() ? '?' + searchParams : ''}`
     const result = await apiClient.get(url) as unknown as {
-      items: Resume[]
+      resumes: Resume[]
       total: number
       page: number
       page_size: number
     }
     return {
-      resumes: result?.items || [],
+      resumes: result?.resumes || [],
       total: result?.total || 0,
       page: result?.page || 1,
       page_size: result?.page_size || 20
@@ -514,16 +514,26 @@ export const resumeApi = {
    * 获取简历统计
    */
   getStats: async (): Promise<{
-    total: number
-    by_status: Record<ResumeStatus, number>
-    assigned: number
-    unassigned: number
+    total_count: number
+    pending_count: number
+    screened_count: number
+    interviewing_count: number
+    analyzed_count: number
+    assigned_count: number
+    unassigned_count: number
+    interview_total: number
+    interview_completed: number
   }> => {
     return await apiClient.get(ENDPOINTS.RESUME_STATS) as unknown as {
-      total: number
-      by_status: Record<ResumeStatus, number>
-      assigned: number
-      unassigned: number
+      total_count: number
+      pending_count: number
+      screened_count: number
+      interviewing_count: number
+      analyzed_count: number
+      assigned_count: number
+      unassigned_count: number
+      interview_total: number
+      interview_completed: number
     }
   },
 
