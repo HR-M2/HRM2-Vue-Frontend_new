@@ -7,9 +7,10 @@
 import type {
   PositionData,
   ResumeScreeningTask,
-  ResumeGroup,
   ResumeData,
-  VideoAnalysis
+  VideoAnalysis,
+  Resume,
+  ResumeStatus
 } from '@/types'
 import { apiClient, rawApiClient, getApiBase, updateApiBase as configUpdateApiBase } from './config'
 import { ENDPOINTS } from './endpoints'
@@ -156,14 +157,6 @@ export const screeningApi = {
   },
 
   /**
-   * 获取简历数据统计（总数）
-   */
-  getResumeDataStats: async (): Promise<{ total: number }> => {
-    const result = await apiClient.get(`${ENDPOINTS.SCREENING_DATA}?page=1&page_size=1`) as unknown as { total: number }
-    return { total: result.total || 0 }
-  },
-
-  /**
    * 获取简历详情（报告）
    * 后端返回格式: { report: { id, candidate_name, position_title, screening_score, screening_summary, ... } }
    */
@@ -174,17 +167,6 @@ export const screeningApi = {
     } catch {
       return null
     }
-  },
-
-  /**
-   * 获取简历组列表
-   */
-  getGroups: async (params?: { include_resumes?: boolean }): Promise<ResumeGroup[]> => {
-    const searchParams = new URLSearchParams()
-    if (params?.include_resumes) searchParams.append('include_resumes', 'true')
-    const url = `${ENDPOINTS.SCREENING_GROUPS}${searchParams.toString() ? '?' + searchParams : ''}`
-    const result = await apiClient.get(url) as unknown as { groups: ResumeGroup[] }
-    return result.groups || []
   },
 
   /**
@@ -211,46 +193,6 @@ export const screeningApi = {
       }
     }
     return resumes
-  },
-
-  /**
-   * 获取简历组详情
-   */
-  getGroupDetail: async (groupId: string): Promise<ResumeGroup> => {
-    const url = `${ENDPOINTS.SCREENING_GROUP_DETAIL(groupId)}?include_resumes=true`
-    const result = await apiClient.get(url) as unknown as { group: ResumeGroup }
-    return result.group || result as unknown as ResumeGroup
-  },
-
-  /**
-   * 创建简历组
-   */
-  createGroup: async (data: {
-    group_name: string
-    resume_data_ids: string[]
-    description?: string
-  }): Promise<ResumeGroup> => {
-    return await apiClient.post(ENDPOINTS.SCREENING_GROUP_CREATE, data) as unknown as ResumeGroup
-  },
-
-  /**
-   * 添加简历到组
-   */
-  addResumeToGroup: async (data: {
-    group_id: string
-    resume_data_id: string
-  }): Promise<void> => {
-    await apiClient.post(ENDPOINTS.SCREENING_GROUP_ADD_RESUME, data)
-  },
-
-  /**
-   * 下载报告（仅返回 Blob）
-   */
-  downloadReport: async (reportId: string): Promise<Blob> => {
-    const response = await rawApiClient.get(ENDPOINTS.SCREENING_REPORT_DOWNLOAD(reportId), {
-      responseType: 'blob'
-    })
-    return response.data
   },
 
   /**
@@ -283,10 +225,43 @@ export const screeningApi = {
   },
 
   /**
-   * 获取简历数据
+   * 关联简历与视频
+   * 将简历数据与视频分析记录建立关联
    */
-  getResumeData: async (): Promise<ResumeData[]> => {
-    return await apiClient.get(ENDPOINTS.SCREENING_DATA) as unknown as ResumeData[]
+  linkVideo: async (resumeDataId: string, videoAnalysisId: string): Promise<{
+    resume_data_id: string
+    video_analysis_id: string
+    candidate_name: string
+    video_name: string
+  }> => {
+    return await apiClient.post(ENDPOINTS.SCREENING_VIDEO_LINK, {
+      resume_data_id: resumeDataId,
+      video_analysis_id: videoAnalysisId
+    }) as unknown as {
+      resume_data_id: string
+      video_analysis_id: string
+      candidate_name: string
+      video_name: string
+    }
+  },
+
+  /**
+   * 解除简历与视频关联
+   */
+  unlinkVideo: async (resumeDataId: string): Promise<{
+    resume_data_id: string
+    disconnected_video_id: string
+    candidate_name: string
+    video_name: string
+  }> => {
+    return await apiClient.post(ENDPOINTS.SCREENING_VIDEO_UNLINK, {
+      resume_data_id: resumeDataId
+    }) as unknown as {
+      resume_data_id: string
+      disconnected_video_id: string
+      candidate_name: string
+      video_name: string
+    }
   }
 }
 
@@ -318,6 +293,34 @@ export const videoApi = {
   getVideoList: async (): Promise<VideoAnalysis[]> => {
     const result = await apiClient.get(ENDPOINTS.VIDEOS) as unknown as { videos: VideoAnalysis[] }
     return result.videos || []
+  },
+
+  /**
+   * 更新视频分析结果
+   * 用于更新人格特征分数、欺诈检测分数等
+   */
+  updateVideo: async (videoId: string, data: {
+    fraud_score?: number
+    neuroticism_score?: number
+    extraversion_score?: number
+    openness_score?: number
+    agreeableness_score?: number
+    conscientiousness_score?: number
+    summary?: string
+    confidence_score?: number
+    status?: string
+  }): Promise<{
+    id: string
+    status: string
+    analysis_result: Record<string, unknown>
+    resume_data_id?: string
+  }> => {
+    return await apiClient.post(ENDPOINTS.VIDEO_DETAIL(videoId), data) as unknown as {
+      id: string
+      status: string
+      analysis_result: Record<string, unknown>
+      resume_data_id?: string
+    }
   }
 }
 
@@ -387,23 +390,27 @@ export interface ComprehensiveAnalysisResult {
   created_at?: string
 }
 
-// ==================== 简历库 API ====================
+// ==================== 简历管理 API ====================
 /**
- * 简历库 API
- * 后端路径: /api/library/
+ * 简历管理 API
+ * 后端路径: /api/resumes/
+ * 合并原 /api/library/ 功能
  */
-export const libraryApi = {
+export const resumeApi = {
   /**
-   * 获取简历库列表
+   * 获取简历列表
    */
   getList: async (params?: {
     page?: number
     page_size?: number
     keyword?: string
+    status?: ResumeStatus
+    position_id?: string
+    // 兼容旧参数
     is_screened?: boolean
     is_assigned?: boolean
   }): Promise<{
-    resumes: LibraryResume[]
+    resumes: Resume[]
     total: number
     page: number
     page_size: number
@@ -412,19 +419,21 @@ export const libraryApi = {
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.page_size) searchParams.append('page_size', params.page_size.toString())
     if (params?.keyword) searchParams.append('keyword', params.keyword)
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.position_id) searchParams.append('position_id', params.position_id)
+    // 兼容旧参数
     if (params?.is_screened !== undefined) searchParams.append('is_screened', params.is_screened.toString())
     if (params?.is_assigned !== undefined) searchParams.append('is_assigned', params.is_assigned.toString())
     
-    const url = `${ENDPOINTS.LIBRARY}${searchParams.toString() ? '?' + searchParams : ''}`
+    const url = `${ENDPOINTS.RESUMES}${searchParams.toString() ? '?' + searchParams : ''}`
     const result = await apiClient.get(url) as unknown as {
-      items: LibraryResume[]
+      resumes: Resume[]
       total: number
       page: number
       page_size: number
     }
-    // 后端返回 items，映射为前端期望的 resumes
     return {
-      resumes: result?.items || [],
+      resumes: result?.resumes || [],
       total: result?.total || 0,
       page: result?.page || 1,
       page_size: result?.page_size || 20
@@ -432,7 +441,7 @@ export const libraryApi = {
   },
 
   /**
-   * 上传简历到简历库
+   * 上传简历
    */
   upload: async (resumes: Array<{
     name: string
@@ -444,7 +453,7 @@ export const libraryApi = {
     uploaded_count: number
     skipped_count: number
   }> => {
-    return await apiClient.post(ENDPOINTS.LIBRARY, { resumes }) as unknown as {
+    return await apiClient.post(ENDPOINTS.RESUMES, { resumes }) as unknown as {
       uploaded: Array<{ id: string; filename: string; candidate_name: string }>
       skipped: Array<{ filename: string; reason: string }>
       uploaded_count: number
@@ -455,8 +464,8 @@ export const libraryApi = {
   /**
    * 获取简历详情
    */
-  getDetail: async (resumeId: string): Promise<LibraryResume> => {
-    return await apiClient.get(ENDPOINTS.LIBRARY_DETAIL(resumeId)) as unknown as LibraryResume
+  getDetail: async (resumeId: string): Promise<Resume> => {
+    return await apiClient.get(ENDPOINTS.RESUME_DETAIL(resumeId)) as unknown as Resume
   },
 
   /**
@@ -465,48 +474,99 @@ export const libraryApi = {
   update: async (resumeId: string, data: {
     candidate_name?: string
     notes?: string
-  }): Promise<void> => {
-    await apiClient.put(ENDPOINTS.LIBRARY_DETAIL(resumeId), data)
+    status?: ResumeStatus
+  }): Promise<Resume> => {
+    return await apiClient.put(ENDPOINTS.RESUME_DETAIL(resumeId), data) as unknown as Resume
   },
 
   /**
    * 删除简历
    */
   delete: async (resumeId: string): Promise<void> => {
-    await apiClient.delete(ENDPOINTS.LIBRARY_DETAIL(resumeId))
+    await apiClient.delete(ENDPOINTS.RESUME_DETAIL(resumeId))
   },
 
   /**
    * 批量删除简历
    */
-  batchDelete: async (resumeIds: string[]): Promise<void> => {
-    await apiClient.post(ENDPOINTS.LIBRARY_BATCH_DELETE, { resume_ids: resumeIds })
+  batchDelete: async (resumeIds: string[]): Promise<{ deleted_count: number }> => {
+    return await apiClient.post(ENDPOINTS.RESUME_BATCH_DELETE, { resume_ids: resumeIds }) as unknown as { deleted_count: number }
   },
 
   /**
    * 检查哈希值是否已存在
    */
   checkHashes: async (hashes: string[]): Promise<{ exists: Record<string, boolean>; existing_count: number }> => {
-    return await apiClient.post(ENDPOINTS.LIBRARY_CHECK_HASH, { hashes }) as unknown as { exists: Record<string, boolean>; existing_count: number }
+    return await apiClient.post(ENDPOINTS.RESUME_CHECK_HASH, { hashes }) as unknown as { exists: Record<string, boolean>; existing_count: number }
+  },
+
+  /**
+   * 分配简历到岗位
+   */
+  assign: async (resumeIds: string[], positionId: string | null): Promise<{ updated_count: number }> => {
+    return await apiClient.post(ENDPOINTS.RESUME_ASSIGN, { 
+      resume_ids: resumeIds,
+      position_id: positionId 
+    }) as unknown as { updated_count: number }
+  },
+
+  /**
+   * 获取简历统计
+   */
+  getStats: async (): Promise<{
+    total_count: number
+    pending_count: number
+    screened_count: number
+    interviewing_count: number
+    analyzed_count: number
+    assigned_count: number
+    unassigned_count: number
+    interview_total: number
+    interview_completed: number
+  }> => {
+    return await apiClient.get(ENDPOINTS.RESUME_STATS) as unknown as {
+      total_count: number
+      pending_count: number
+      screened_count: number
+      interviewing_count: number
+      analyzed_count: number
+      assigned_count: number
+      unassigned_count: number
+      interview_total: number
+      interview_completed: number
+    }
+  },
+
+  /**
+   * 获取筛选结果
+   */
+  getScreeningResult: async (resumeId: string): Promise<{
+    screening_result: Resume['screening_result']
+    screening_report: string | null
+  }> => {
+    return await apiClient.get(ENDPOINTS.RESUME_SCREENING(resumeId)) as unknown as {
+      screening_result: Resume['screening_result']
+      screening_report: string | null
+    }
+  },
+
+  /**
+   * 更新筛选结果
+   */
+  updateScreeningResult: async (resumeId: string, data: {
+    screening_result?: Resume['screening_result']
+    screening_report?: string
+    status?: ResumeStatus
+  }): Promise<Resume> => {
+    return await apiClient.put(ENDPOINTS.RESUME_SCREENING(resumeId), data) as unknown as Resume
   }
 }
 
-// 简历库类型定义
-export interface LibraryResume {
-  id: string
-  filename: string
-  file_hash: string
-  file_size: number
-  file_type: string
-  content?: string
-  content_preview?: string
-  candidate_name: string | null
-  is_screened: boolean
-  is_assigned: boolean
-  notes: string | null
-  created_at: string
-  updated_at?: string
-}
+// 兼容别名 - libraryApi 已迁移到 resumeApi
+export const libraryApi = resumeApi
+
+// 兼容类型 - LibraryResume 已迁移到 Resume
+export type LibraryResume = Resume
 
 // ==================== 开发测试工具 API ====================
 /**

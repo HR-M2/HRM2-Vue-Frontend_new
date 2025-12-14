@@ -113,7 +113,7 @@
         
         <el-table-column label="标识" width="100">
           <template #default="{ row }">
-            <span class="hash-value">{{ row.file_hash }}</span>
+            <span class="hash-value">{{ row.file_hash_short }}</span>
           </template>
         </el-table-column>
         

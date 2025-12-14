@@ -116,7 +116,7 @@
         </el-table-column>
         <el-table-column label="标识" width="100">
           <template #default="{ row }">
-            <span class="hash-value">{{ row.file_hash }}</span>
+            <span class="hash-value">{{ row.file_hash_short }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="上传时间" width="160">

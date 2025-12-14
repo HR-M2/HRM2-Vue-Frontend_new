@@ -26,21 +26,30 @@ export const ENDPOINTS = {
   /** AI生成岗位要求 - POST */
   POSITION_AI_GENERATE: '/positions/ai/generate/',
 
-  // ==================== 简历库 ====================
-  // 后端路由: apps/resume_library/urls.py
-  // 基础路径: /api/library/
+  // ==================== 简历管理 ====================
+  // 后端路由: apps/resume/urls.py
+  // 基础路径: /api/resumes/
   
-  /** 简历库列表 - GET列表, POST上传 */
-  LIBRARY: '/library/',
+  /** 简历列表 - GET列表, POST批量上传 */
+  RESUMES: '/resumes/',
   
   /** 简历详情 - GET/PUT/DELETE */
-  LIBRARY_DETAIL: (id: string) => `/library/${id}/`,
+  RESUME_DETAIL: (id: string) => `/resumes/${id}/`,
   
   /** 批量删除简历 - POST */
-  LIBRARY_BATCH_DELETE: '/library/batch-delete/',
+  RESUME_BATCH_DELETE: '/resumes/batch-delete/',
   
   /** 检查文件哈希值 - POST */
-  LIBRARY_CHECK_HASH: '/library/check-hash/',
+  RESUME_CHECK_HASH: '/resumes/check-hash/',
+  
+  /** 分配简历到岗位 - POST */
+  RESUME_ASSIGN: '/resumes/assign/',
+  
+  /** 简历统计 - GET */
+  RESUME_STATS: '/resumes/stats/',
+  
+  /** 简历筛选结果 - GET/PUT */
+  RESUME_SCREENING: (id: string) => `/resumes/${id}/screening/`,
 
   // ==================== 简历筛选 ====================
   // 后端路由: apps/resume_screening/urls.py
@@ -64,27 +73,6 @@ export const ENDPOINTS = {
   /** 报告下载 - GET */
   SCREENING_REPORT_DOWNLOAD: (id: string) => `/screening/reports/${id}/download/`,
   
-  /** 筛选后的简历数据 - GET */
-  SCREENING_DATA: '/screening/data/',
-  
-  /** 简历组列表 - GET */
-  SCREENING_GROUPS: '/screening/groups/',
-  
-  /** 创建简历组 - POST */
-  SCREENING_GROUP_CREATE: '/screening/groups/create/',
-  
-  /** 简历组详情 - GET/DELETE */
-  SCREENING_GROUP_DETAIL: (id: string) => `/screening/groups/${id}/`,
-  
-  /** 添加简历到组 - POST */
-  SCREENING_GROUP_ADD_RESUME: '/screening/groups/add-resume/',
-  
-  /** 从组移除简历 - POST */
-  SCREENING_GROUP_REMOVE_RESUME: '/screening/groups/remove-resume/',
-  
-  /** 设置组状态 - POST */
-  SCREENING_GROUP_SET_STATUS: '/screening/groups/set-status/',
-  
   /** 视频关联 - POST */
   SCREENING_VIDEO_LINK: '/screening/videos/link/',
   
@@ -93,12 +81,6 @@ export const ENDPOINTS = {
   
   /** 开发工具：生成随机简历 - POST */
   SCREENING_DEV_GENERATE: '/screening/dev/generate-resumes/',
-  
-  /** 开发工具：强制错误 - POST */
-  SCREENING_DEV_FORCE_ERROR: '/screening/dev/force-error/',
-  
-  /** 开发工具：重置状态 - POST */
-  SCREENING_DEV_RESET_STATE: '/screening/dev/reset-state/',
 
   // ==================== 视频分析 ====================
   // 后端路由: apps/video_analysis/urls.py
