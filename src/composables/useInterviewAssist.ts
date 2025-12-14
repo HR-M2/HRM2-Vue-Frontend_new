@@ -545,7 +545,7 @@ export function useInterviewAssist() {
   const createSession = async (resumeId: string): Promise<boolean> => {
     try {
       const session = await interviewAssistApi.createSession({
-        resume_data_id: resumeId
+        resume_id: resumeId
       })
       sessionId.value = session.session_id
       resumeDataId.value = resumeId

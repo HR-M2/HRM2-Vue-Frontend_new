@@ -27,7 +27,9 @@ export interface ProjectRequirements {
 
 export interface PositionData {
   id?: string
-  position: string
+  title: string
+  /** @deprecated 使用 title 代替 */
+  position?: string
   department?: string
   description?: string
   required_skills: string[]

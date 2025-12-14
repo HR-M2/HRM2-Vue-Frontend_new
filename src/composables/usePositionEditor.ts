@@ -8,7 +8,7 @@ import type { PositionData } from '@/types'
 
 // 默认岗位数据
 const defaultPositionData: PositionData = {
-  position: '',
+  title: '',
   description: '',
   required_skills: [],
   optional_skills: [],
@@ -99,7 +99,7 @@ export function usePositionEditor() {
 
     try {
       const newPos = await positionApi.createPosition({
-        position: name,
+        title: name,
         description,
         required_skills: [],
         optional_skills: [],
@@ -130,7 +130,7 @@ export function usePositionEditor() {
     if (!pos.id) return false
 
     try {
-      await ElMessageBox.confirm(`确定要删除岗位"${pos.position}"吗？`, '确认删除', {
+      await ElMessageBox.confirm(`确定要删除岗位"${pos.title}"吗？`, '确认删除', {
         confirmButtonText: '删除',
         cancelButtonText: '取消',
         type: 'warning'

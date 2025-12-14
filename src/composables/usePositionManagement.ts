@@ -10,7 +10,7 @@ import type { PositionData, ResumeData } from '@/types'
 export function usePositionManagement() {
   // 状态
   const positionData = ref<PositionData>({
-    position: '前端开发工程师',
+    title: '前端开发工程师',
     required_skills: ['HTML', 'JavaScript', 'CSS'],
     optional_skills: [],
     min_experience: 2,

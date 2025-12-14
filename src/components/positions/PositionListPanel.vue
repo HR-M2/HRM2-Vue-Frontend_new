@@ -24,7 +24,7 @@
         @click="$emit('select', pos)"
       >
         <div class="position-info">
-          <div class="position-name">{{ pos.position }}</div>
+          <div class="position-name">{{ pos.title || pos.position }}</div>
           <div class="position-meta">
             <span class="resume-count">{{ pos.resume_count || 0 }} 份简历</span>
           </div>

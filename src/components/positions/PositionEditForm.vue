@@ -45,9 +45,9 @@
       label-position="left"
     >
       <!-- 岗位名称 -->
-      <el-form-item label="岗位名称" prop="position">
+      <el-form-item label="岗位名称" prop="title">
         <el-input
-          v-model="formData.position"
+          v-model="formData.title"
           placeholder="请输入岗位名称"
           maxlength="50"
           show-word-limit
@@ -226,7 +226,7 @@ const showJsonDialog = ref(false)
 const handleAIApply = (data: PositionData) => {
   // 将AI生成的数据应用到表单
   Object.assign(props.formData, {
-    position: data.position || props.formData.position,
+    title: data.title || data.position || props.formData.title,
     description: data.description || '',
     required_skills: data.required_skills || [],
     optional_skills: data.optional_skills || [],
@@ -243,7 +243,7 @@ const handleAIApply = (data: PositionData) => {
 
 // 表单验证规则
 const formRules: FormRules = {
-  position: [{ required: true, message: '请输入岗位名称', trigger: 'blur' }]
+  title: [{ required: true, message: '请输入岗位名称', trigger: 'blur' }]
 }
 
 // 常用技能选项

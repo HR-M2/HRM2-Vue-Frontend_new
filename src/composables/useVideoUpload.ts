@@ -49,7 +49,7 @@ export function useVideoUpload(
         'position_applied', 
         currentResume.value.position_title || positionData.value?.position || ''
       )
-      formData.append('resume_data_id', currentResume.value.id)
+      formData.append('resume_id', currentResume.value.id)
 
       await videoApi.uploadVideo(formData)
 

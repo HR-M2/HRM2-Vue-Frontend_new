@@ -62,7 +62,7 @@ const router = useRouter()
 const navItems = [
   { path: '/', label: '仪表盘', icon: HomeFilled },
   { path: '/positions', label: '岗位设置', icon: Briefcase },
-  { path: '/library', label: '简历库', icon: FolderOpened },
+  { path: '/resumes', label: '简历管理', icon: FolderOpened },
   { path: '/screening', label: '简历筛选', icon: Document },
   { path: '/video', label: '视频分析', icon: VideoCamera },
   { path: '/interview', label: '面试辅助', icon: ChatDotRound },

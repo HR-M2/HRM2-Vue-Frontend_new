@@ -333,7 +333,7 @@ const router = useRouter()
 // ========== 类型定义 ==========
 interface InterviewSession {
   id: string
-  resume_data_id: string
+  resume_id: string
   qa_records: Array<{ question: string; answer: string }>
   final_report?: {
     overall_assessment?: {

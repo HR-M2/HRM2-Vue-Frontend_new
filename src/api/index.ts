@@ -84,8 +84,8 @@ export const positionApi = {
   /**
    * 分配简历到岗位
    */
-  assignResumes: async (positionId: string, resumeDataIds: string[]): Promise<{ assigned_count: number, total_resumes: number }> => {
-    return await apiClient.post(ENDPOINTS.POSITION_RESUMES(positionId), { resume_data_ids: resumeDataIds }) as unknown as { assigned_count: number, total_resumes: number }
+  assignResumes: async (positionId: string, resumeIds: string[]): Promise<{ assigned_count: number, total_resumes: number }> => {
+    return await apiClient.post(ENDPOINTS.POSITION_RESUMES(positionId), { resume_ids: resumeIds }) as unknown as { assigned_count: number, total_resumes: number }
   },
 
   /**
@@ -228,17 +228,17 @@ export const screeningApi = {
    * 关联简历与视频
    * 将简历数据与视频分析记录建立关联
    */
-  linkVideo: async (resumeDataId: string, videoAnalysisId: string): Promise<{
-    resume_data_id: string
+  linkVideo: async (resumeId: string, videoAnalysisId: string): Promise<{
+    resume_id: string
     video_analysis_id: string
     candidate_name: string
     video_name: string
   }> => {
     return await apiClient.post(ENDPOINTS.SCREENING_VIDEO_LINK, {
-      resume_data_id: resumeDataId,
+      resume_id: resumeId,
       video_analysis_id: videoAnalysisId
     }) as unknown as {
-      resume_data_id: string
+      resume_id: string
       video_analysis_id: string
       candidate_name: string
       video_name: string
@@ -248,16 +248,16 @@ export const screeningApi = {
   /**
    * 解除简历与视频关联
    */
-  unlinkVideo: async (resumeDataId: string): Promise<{
-    resume_data_id: string
+  unlinkVideo: async (resumeId: string): Promise<{
+    resume_id: string
     disconnected_video_id: string
     candidate_name: string
     video_name: string
   }> => {
     return await apiClient.post(ENDPOINTS.SCREENING_VIDEO_UNLINK, {
-      resume_data_id: resumeDataId
+      resume_id: resumeId
     }) as unknown as {
-      resume_data_id: string
+      resume_id: string
       disconnected_video_id: string
       candidate_name: string
       video_name: string
@@ -313,13 +313,13 @@ export const videoApi = {
     id: string
     status: string
     analysis_result: Record<string, unknown>
-    resume_data_id?: string
+    resume_id?: string
   }> => {
     return await apiClient.post(ENDPOINTS.VIDEO_DETAIL(videoId), data) as unknown as {
       id: string
       status: string
       analysis_result: Record<string, unknown>
-      resume_data_id?: string
+      resume_id?: string
     }
   }
 }
@@ -617,7 +617,7 @@ export const interviewAssistApi = {
    * 创建面试会话
    */
   createSession: async (data: {
-    resume_data_id: string
+    resume_id: string
     job_config?: Record<string, unknown>
   }): Promise<InterviewSession> => {
     return await apiClient.post(ENDPOINTS.INTERVIEW_SESSIONS, data) as unknown as InterviewSession
@@ -719,7 +719,7 @@ export const interviewAssistApi = {
    */
   getSessionsByResumeId: async (resumeId: string): Promise<Array<{
     id: string
-    resume_data_id: string
+    resume_id: string
     qa_records: Array<{ question: string; answer: string }>
     final_report?: {
       overall_assessment?: {
@@ -735,7 +735,7 @@ export const interviewAssistApi = {
     const url = `${ENDPOINTS.INTERVIEW_SESSIONS}?resume_id=${resumeId}`
     const result = await apiClient.get(url) as unknown as Array<{
       id: string
-      resume_data_id: string
+      resume_id: string
       qa_records: Array<{ question: string; answer: string }>
       final_report?: {
         overall_assessment?: {
