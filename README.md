@@ -204,3 +204,15 @@ HRM2-Vue-Frontend_new/
 
 前端 API 封装详见 [`src/api/API_METHODS.md`](./src/api/API_METHODS.md)，包含所有后端接口的路径、参数、返回值说明。
 
+> **注意**：2024-12-14 数据库简化重构后，简历管理 API 已从 `/api/library/` 迁移到 `/api/resumes/`。
+> 前端使用 `resumeApi`（新）或 `libraryApi`（兼容别名）调用，详见 `src/api/index.ts`。
+
+---
+
+## 更新日志
+
+- **2024-12-14**: API 端点迁移，简历管理从 `/api/library/` → `/api/resumes/`，新增 `resumeApi`（`libraryApi` 保留为兼容别名）
+- **2024-12**: 新增最终录用推荐系统（综合分析、Rubric 量表评估）
+- **2024-12**: 新增面试辅助系统（问题池生成、问答记录、最终报告）
+- **2024-12**: 新增开发测试工具（随机简历生成）
+

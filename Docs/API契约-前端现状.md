@@ -1,5 +1,7 @@
 > ⚠️ 本文档描述前端**实际调用**的 API 形态，后端应以此为契约标准进行对齐。
 
+**更新日期**: 2024-12-14（数据库简化重构后）
+
 # 前端 API 契约（现状）
 
 本文档基于前端工程 `src/api/endpoints.ts`、`src/api/index.ts`、`src/api/config.ts` 汇总，描述“前端实际调用/期望”的 API 形态，用于后续与后端现状（OpenAPI/代码）对比。
@@ -47,13 +49,13 @@
 ### 3.0 接口统计
 
 - 岗位管理：8 个
-- 简历库：7 个
+- 简历管理：11 个（原简历库，已扩展）
 - 简历筛选：9 个
 - 视频分析：4 个
 - 最终推荐：3 个
 - 面试辅助：7 个
 
-**合计：38 个接口。**
+**合计：42 个接口。**
 
 ### 3.1 岗位管理（`/positions/`）
 
@@ -109,51 +111,82 @@
 
 ---
 
-### 3.2 简历库（`/library/`）
+### 3.2 简历管理（`/resumes/`）
 
-#### GET `/library/`
+> ⚠️ 数据库简化重构后，原 `/library/` 路径已迁移到 `/resumes/`。前端 `resumeApi` 为主要接口，`libraryApi` 作为兼容别名保留。
+
+#### GET `/resumes/`
 - **Query（可选）**
   - `page?: number`
   - `page_size?: number`
-  - `keyword?: string`
-  - `is_screened?: boolean`
+  - `candidate_name?: string`（原 keyword）
+  - `status?: string`（新增：pending/screened/interviewing/analyzed）
+  - `position_id?: string`（新增：按岗位过滤）
   - `is_assigned?: boolean`
 - **响应 data（前端读取字段）**
-  - `{ items: LibraryResume[]; total: number; page: number; page_size: number }`
+  - `{ items: Resume[]; total: number; page: number; page_size: number }`
 - **前端映射**
-  - `libraryApi.getList()` 返回 `{ resumes: items, total, page, page_size }`
+  - `resumeApi.getList()` 返回 `{ resumes: items, total, page, page_size }`
 
-#### POST `/library/`
+#### POST `/resumes/`
 - **请求 body**
   - `{ resumes: Array<{ name: string; content: string; metadata?: { size?: number; type?: string } }> }`
 - **响应 data（前端期望）**
   - `{ uploaded: Array<{ id: string; filename: string; candidate_name: string }>; skipped: Array<{ filename: string; reason: string }>; uploaded_count: number; skipped_count: number }`
 
-#### GET `/library/{id}/`
+#### GET `/resumes/{id}/`
 - **响应 data**
-  - `LibraryResume`
+  - `Resume`（包含 status, screening_result, position_id 等新字段）
 
-#### PUT `/library/{id}/`
+#### PUT `/resumes/{id}/`
 - **请求 body**
-  - `{ candidate_name?: string; notes?: string }`
+  - `{ candidate_name?: string; notes?: string; status?: string; position_id?: string }`
+- **响应 data**
+  - `Resume`
+
+#### DELETE `/resumes/{id}/`
 - **响应**
   - 前端不使用响应体
 
-#### DELETE `/library/{id}/`
-- **响应**
-  - 前端不使用响应体
-
-#### POST `/library/batch-delete/`
+#### POST `/resumes/batch-delete/`
 - **请求 body**
   - `{ resume_ids: string[] }`
-- **响应**
-  - 前端不使用响应体
+- **响应 data**
+  - `{ deleted_count: number }`
 
-#### POST `/library/check-hash/`
+#### POST `/resumes/check-hash/`
 - **请求 body**
   - `{ hashes: string[] }`
 - **响应 data（前端期望）**
-  - `{ exists: Record<string, boolean>; existing_count: number }`
+  - `{ existing_hashes: string[] }`
+
+#### POST `/resumes/assign/`（新增）
+- **用途**
+  - 批量分配简历到岗位或取消分配
+- **请求 body**
+  - `{ resume_ids: string[]; position_id: string | null }`
+- **响应 data**
+  - `{ assigned_count: number; message: string }`
+
+#### GET `/resumes/stats/`（新增）
+- **用途**
+  - 获取简历统计数据
+- **响应 data**
+  - `{ total: number; pending: number; screened: number; interviewing: number; analyzed: number; assigned: number; unassigned: number }`
+
+#### GET `/resumes/{id}/screening/`（新增）
+- **用途**
+  - 获取简历的筛选结果
+- **响应 data**
+  - `{ screening_result: object | null; screening_report: string | null }`
+
+#### PUT `/resumes/{id}/screening/`（新增）
+- **用途**
+  - 更新简历的筛选结果（通常由筛选任务调用）
+- **请求 body**
+  - `{ screening_result?: object; screening_report?: string }`
+- **响应 data**
+  - `{ id: string; status: string; screening_result: object }`
 
 ---
 
